@@ -38,58 +38,6 @@ qc_native_preference_tuning/
 
 ---
 
-## Quick Start
-
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Configure
-
-Edit `configs/config.yaml` to set your model, dataset, and training hyperparameters.
-
-### 3. Generate preference data
-
-```python
-from configs import load_config
-from pipeline.datagenerator import run_data_generation_pipeline
-
-config = load_config()
-prompts = ["What is machine learning?", "Explain transformers in NLP."]
-samples = run_data_generation_pipeline(config, prompts, "data/train.jsonl")
-```
-
-### 4. Train
-
-```python
-from configs import load_config
-from pipeline.training import run_training_pipeline
-
-config = load_config()
-run_training_pipeline(config)
-```
-
-### 5. Evaluate
-
-```python
-from configs import load_config
-from pipeline.evals import run_eval_pipeline
-
-config = load_config()
-metrics = run_eval_pipeline(config, model_path="outputs/model")
-print(metrics)  # {"win_rate": 0.65, "num_samples": 200}
-```
-
-### 6. Run on Modal
-
-```bash
-modal run pipeline/modal_runner/__init__.py
-```
-
----
-
 ## Configuration Reference
 
 See `configs/config.yaml` for the full list of configurable options, including:
@@ -105,21 +53,3 @@ See `configs/config.yaml` for the full list of configurable options, including:
 | `modal`         | `app_name`, `gpu`, `gpu_count`, `secret_names`                 |
 
 ---
-
-## Supported Training Methods
-
-| Method | Description                               |
-|--------|-------------------------------------------|
-| `dpo`  | Direct Preference Optimization (default)  |
-| `sft`  | Supervised Fine-Tuning on chosen responses|
-
----
-
-## Languages
-
-The project currently supports:
-
-- `en` — English  
-- `id` — Indonesian (Bahasa Indonesia)  
-
-Additional languages can be added via the `languages` key in `configs/config.yaml`.

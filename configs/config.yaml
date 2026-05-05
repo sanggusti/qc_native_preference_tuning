@@ -1,100 +1,15 @@
 project:
-  name: qc_native_preference_tuning
-  description: "English and Native Language Preference Tuning for small LLMs"
-  version: "0.1.0"
 
 model:
-  base_model: "Qwen/Qwen2.5-1.5B-Instruct"
-  model_max_length: 2048
-  torch_dtype: "bfloat16"
-  attn_implementation: "flash_attention_2"
 
 data:
-  dataset_name: "sanggusti/preference_tuning_dataset"
-  train_split: "train"
-  eval_split: "test"
-  prompt_column: "prompt"
-  chosen_column: "chosen"
-  rejected_column: "rejected"
-  max_prompt_length: 512
-  max_length: 1024
-  num_proc: 4
-  seed: 42
 
 training:
-  method: "dpo"  # options: dpo, sft, orpo
-  output_dir: "outputs/model"
-  num_train_epochs: 3
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 4
-  learning_rate: 5.0e-6
-  lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
-  weight_decay: 0.01
-  bf16: true
-  tf32: true
-  logging_steps: 10
-  eval_steps: 100
-  save_steps: 100
-  save_total_limit: 3
-  load_best_model_at_end: true
-  metric_for_best_model: "eval_loss"
-  report_to: "wandb"
-  run_name: "qc_preference_tuning"
-  beta: 0.1  # DPO beta (KL penalty coefficient)
 
 lora:
-  use_lora: true
-  r: 16
-  lora_alpha: 32
-  lora_dropout: 0.05
-  target_modules:
-    - "q_proj"
-    - "k_proj"
-    - "v_proj"
-    - "o_proj"
-    - "gate_proj"
-    - "up_proj"
-    - "down_proj"
-  bias: "none"
-  task_type: "CAUSAL_LM"
 
 evals:
-  judge_model: "gpt-4o-mini"
-  judge_temperature: 0.0
-  num_eval_samples: 200
-  batch_size: 8
-  metrics:
-    - "win_rate"
-    - "length_controlled_win_rate"
-    - "reward_score"
-  languages:
-    - "en"
-    - "id"
 
 datagenerator:
-  generator_model: "gpt-4o-mini"
-  num_samples: 1000
-  temperature: 0.8
-  max_tokens: 1024
-  topics:
-    - "general_knowledge"
-    - "coding"
-    - "math"
-    - "writing"
-    - "reasoning"
-  languages:
-    - "en"
-    - "id"
 
 modal:
-  app_name: "qc_preference_tuning"
-  gpu: "A100"
-  gpu_count: 1
-  timeout: 86400
-  image: "pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime"
-  secret_names:
-    - "wandb-secret"
-    - "hf-secret"
-    - "openai-secret"
