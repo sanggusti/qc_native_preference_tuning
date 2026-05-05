@@ -66,7 +66,7 @@ def generate_preference_sample(
             "rejected": rejected_resp.choices[0].message.content.strip(),
         }
     except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to generate sample for prompt '%s': %s", prompt[:80], exc)
+        logger.error("Failed to generate sample for prompt '%s': %s", prompt, exc)
         return None
 
 

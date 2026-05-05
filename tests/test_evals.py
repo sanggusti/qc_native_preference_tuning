@@ -49,3 +49,8 @@ def test_llm_judge_evaluator(mock_openai_client):
     result = evaluator.evaluate_pair(sample)
     assert result.winner in ("a", "b", "tie")
     assert result.prompt == sample.prompt
+
+    # evaluate_batch returns (results, failures)
+    results, failures = evaluator.evaluate_batch([sample, sample])
+    assert len(results) == 2
+    assert failures == 0

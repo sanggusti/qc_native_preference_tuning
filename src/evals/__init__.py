@@ -3,7 +3,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -42,23 +42,31 @@ class BaseEvaluator(ABC):
     def evaluate_pair(self, sample: EvalSample) -> EvalResult:
         """Evaluate a single (prompt, response_a, response_b) triplet."""
 
-    def evaluate_batch(self, samples: List[EvalSample]) -> List[EvalResult]:
+    def evaluate_batch(self, samples: List[EvalSample]) -> Tuple[List[EvalResult], int]:
         """Evaluate a batch of samples.
 
         Args:
             samples: List of EvalSample instances.
 
         Returns:
-            List of EvalResult instances.
+            Tuple of (list of EvalResult instances, number of failed evaluations).
         """
         results = []
+        failures = 0
         for sample in samples:
             try:
                 result = self.evaluate_pair(sample)
                 results.append(result)
             except Exception as exc:  # noqa: BLE001
                 logger.error("Error evaluating sample: %s", exc)
-        return results
+                failures += 1
+        if failures:
+            logger.warning(
+                "%d / %d samples failed evaluation and were skipped.",
+                failures,
+                len(samples),
+            )
+        return results, failures
 
 
 def compute_win_rate(results: List[EvalResult], model_is_a: bool = True) -> float:

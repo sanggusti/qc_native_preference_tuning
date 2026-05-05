@@ -97,10 +97,12 @@ def run_eval_pipeline(
     ]
 
     evaluator = LLMJudgeEvaluator(config=eval_cfg, client=client)
-    results = evaluator.evaluate_batch(eval_samples)
+    results, failures = evaluator.evaluate_batch(eval_samples)
+    if failures:
+        logger.warning("Skipped %d samples due to evaluation errors.", failures)
 
     win_rate = compute_win_rate(results, model_is_a=True)
-    metrics = {"win_rate": win_rate, "num_samples": len(results)}
+    metrics = {"win_rate": win_rate, "num_samples": len(results), "num_failures": failures}
     logger.info("Evaluation complete. Win rate: %.3f (%d samples)", win_rate, len(results))
 
     # Save results

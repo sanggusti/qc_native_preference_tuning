@@ -4,7 +4,7 @@ import logging
 import os
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 import numpy as np
 
@@ -71,10 +71,11 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dic
 
 
 def ensure_dir(path: str | Path) -> Path:
-    """Create directory if it does not exist.
+    """Create directory (and all parents) if it does not exist.
 
     Args:
-        path: Directory path to create.
+        path: Directory path to create. Parent directories are created
+            automatically as needed (equivalent to ``mkdir -p``).
 
     Returns:
         Resolved Path object.
@@ -84,7 +85,7 @@ def ensure_dir(path: str | Path) -> Path:
     return p
 
 
-def batch_iterable(iterable: List[Any], batch_size: int):
+def batch_iterable(iterable: List[Any], batch_size: int) -> "Generator[List[Any], None, None]":
     """Yield successive batches from an iterable.
 
     Args:
