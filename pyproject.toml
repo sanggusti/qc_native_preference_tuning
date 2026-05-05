@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "qc_native_preference_tuning"
+version = "0.1.0"
+description = "English and Native Language Preference Tuning for small LLMs"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.3.0",
+    "transformers>=4.40.0",
+    "datasets>=2.19.0",
+    "trl>=0.9.0",
+    "peft>=0.11.0",
+    "accelerate>=0.30.0",
+    "bitsandbytes>=0.43.0",
+    "pyyaml>=6.0",
+    "openai>=1.0.0",
+    "wandb>=0.17.0",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+modal = ["modal>=0.62.0"]
+dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["configs*", "pipeline*", "src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "BLE", "B"]
+ignore = ["E501"]
