@@ -1,0 +1,12 @@
+split: train
+source_config: en
+target_language: Indonesian
+max_rows: null
+output_dir: data/mgsm_preference
+push_to_hub: null
+private: false
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
