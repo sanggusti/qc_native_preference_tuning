@@ -24,7 +24,7 @@
 
 - **Threshold-Based Real-World Usability**: For multilingual visual tasks like OCR, developers plot accuracy percentages per language. For instance, Qwen3-VL developers set an evaluation property of 70% accuracy as the threshold to determine if the model has "strong and usable" support for a specific language in real-world scenarios.
 
-## QWEN3VL Datasets
+## Qwen3-VL Datasets
 
 ### Pre-training Datasets
 
