@@ -53,3 +53,8 @@ See `configs/config.yaml` for the full list of configurable options, including:
 | `modal`         | `app_name`, `gpu`, `gpu_count`, `secret_names`                 |
 
 ---
+
+## References
+
+- A Simple Guide to Retrieval Augmented Generation, Abhinav Kimothi, Manning Publication 2025
+- Reinforcement Learning with Human Feedback, Nathan Lambert, Manning Publication 2026
