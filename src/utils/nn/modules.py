@@ -103,9 +103,10 @@ class LoggedImageClassifierModule(LoggedLitModule):
 
         super().__init__()
 
-        self.train_acc = torchmetrics.Accuracy()
-        self.valid_acc = torchmetrics.Accuracy()
-        self.test_acc = torchmetrics.Accuracy()
+        # temporary hardcoding of multiclass classification metrics for testing purposes; can be overwritten by user
+        self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=2)
+        self.valid_acc = torchmetrics.Accuracy(task="multiclass", num_classes=2)
+        self.test_acc = torchmetrics.Accuracy(task="multiclass", num_classes=2)
 
         self.training_metrics.append(self.train_acc)
         self.validation_metrics.append(self.valid_acc)
