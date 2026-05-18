@@ -25,3 +25,7 @@ modal>=0.62.0
 
 # Testing
 pytest>=8.0.0
+
+lightning
+torchmetrics
+torchviz
