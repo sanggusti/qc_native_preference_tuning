@@ -1,1 +1,1 @@
-"""Evaluation task implementations."""
+"""Inspect AI evaluation tasks for multilingual LLM assessment."""
