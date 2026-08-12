@@ -4,29 +4,37 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qc_native_preference_tuning"
-version = "0.1.0"
-description = "English and Native Language Preference Tuning for small LLMs"
+version = "0.2.0"
+description = "Evaluate finetuned LLMs on Indonesian low-resource language tasks using Inspect AI and Adaption"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
+    "adaption",
+    "inspect-ai",
+    "datasets>=2.19.0",
+    "openai>=1.0.0",
+    "pyyaml>=6.0",
+    "hydra-core>=1.3.2",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+training = [
     "torch>=2.3.0",
     "transformers>=4.40.0",
-    "datasets>=2.19.0",
     "trl>=0.9.0",
     "peft>=0.11.0",
     "accelerate>=0.30.0",
     "bitsandbytes>=0.43.0",
-    "pyyaml>=6.0",
-    "hydra-core>=1.3.2",
-    "openai>=1.0.0",
     "wandb>=0.17.0",
-    "numpy>=1.26.0",
 ]
-
-[project.optional-dependencies]
 modal = ["modal>=0.62.0"]
-dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

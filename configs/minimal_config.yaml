@@ -1,0 +1,35 @@
+project:
+  name: "qc_native_preference_tuning"
+  description: "Evaluate finetuned LLMs on Indonesian low-resource language tasks"
+
+adaption:
+  # Set ADAPTION_API_KEY in environment
+  dataset_name: null
+
+inspect:
+  # Inspect AI eval settings
+  model: null  # e.g. "openai/gpt-4o-mini" or a local HF model
+  log_dir: "./logs/inspect"
+
+eval:
+  domains:
+    - general
+    - medicine
+    - science
+    - programming
+  languages:
+    - id    # Indonesian
+    - jv    # Javanese
+    - su    # Sundanese
+    - min   # Minangkabau
+
+modal:
+  image: "python:3.12-slim"
+  resources:
+    N_GPU: 1
+    timeout: 120
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null

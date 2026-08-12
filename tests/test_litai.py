@@ -1,4 +1,9 @@
+"""Tests for LitAI inference tools (requires litai package and LITAI_MODEL env)."""
+
 import pytest
+
+litai = pytest.importorskip("litai", reason="litai package not installed")
+
 from pipeline.evals.litai_tools import inference_with_litai
 
 
