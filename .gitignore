@@ -219,4 +219,8 @@ __marimo__/
 logs/*
 outputs/*
 data/
-.claude/
+
+# Claude Code: track project skills, keep METR study tooling and local settings ignored
+.claude/*
+!.claude/skills/
+.claude/skills/metr-*

@@ -1,0 +1,28 @@
+# Datagen experiment template (Adaption Adaptive Data translation / preference pairs).
+# Copy to {domain}_{language}.yaml and fill in. Consumed by a Hydra pipeline under
+# pipeline/datagenerator/ (reference: evals_translate/mgsm_convert.py + its config
+# configs/datagenerator/evals_convert/mgsm_convert.yaml).
+
+# Source dataset on HF Hub
+source_dataset: null        # e.g. juletxara/mgsm, GBaker/MedQA-USMLE-4-options
+source_config: en           # HF config / source language subset
+split: train
+max_rows: null              # set small (e.g. 20) for smoke runs
+
+# Adaption run
+target_language: null       # e.g. Indonesian, Javanese, Sundanese, Minangkabau
+column_mapping:
+  prompt: question
+  completion: answer
+training_type: instruction_dataset   # or preference_pairs (Adaption-generated chosen/rejected)
+blueprint: null             # brand_controls.blueprint system prompt; null = pipeline default
+
+# Outputs
+output_dir: data/{domain}_{language}
+push_to_hub: null           # sanggusti/{domain}-qa-{language}; null = don't push
+private: false
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
