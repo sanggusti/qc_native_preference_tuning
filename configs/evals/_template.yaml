@@ -1,0 +1,15 @@
+# Eval experiment template (Inspect AI task parameters).
+# Copy to {domain}_{language}.yaml. Consumed via:
+#   uv run inspect eval src/evals/tasks/multilingual_qa.py \
+#     --model <model-under-eval> --task-config configs/evals/{domain}_{language}.yaml
+# Keys must match the @task function's parameters (src/evals/tasks/multilingual_qa.py).
+
+dataset_path: null          # local JSONL with question/answer fields; null = built-in smoke samples
+language: id                # id | jv | su | min | en
+domain: general             # medical | math | programming | science | general
+
+# Not task params; record here for the experiment registry and pass on the CLI:
+#   model under eval:  --model hf/sanggusti/{domain}-{language}-finetuned  (or openai/..., anthropic/...)
+#   judge model:       --model-role grader=openai/gpt-4o-mini
+#   log dir:           --log-dir logs/inspect   (default convention)
+#   smoke run:         --limit 5
