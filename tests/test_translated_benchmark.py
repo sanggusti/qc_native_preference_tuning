@@ -12,10 +12,10 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def test_numeric_benchmark_builds_task():
     result = translated_benchmark(
-        benchmark="mgsm", language="id", dataset_path=str(FIXTURES / "mgsm_id_sample.jsonl")
+        benchmark="gsm8k", language="id", dataset_path=str(FIXTURES / "gsm8k_id_sample.jsonl")
     )
     assert isinstance(result, Task)
-    assert result.metadata["benchmark"] == "mgsm"
+    assert result.metadata["benchmark"] == "gsm8k"
     assert result.metadata["language"] == "id"
     assert result.metadata["domain"] == "math"
     sample = result.dataset[0]
@@ -43,15 +43,15 @@ def test_choice_benchmark_builds_task():
 def test_unknown_language_rejected():
     with pytest.raises(FileNotFoundError):
         translated_benchmark(
-            benchmark="mgsm", language="zz", dataset_path=str(FIXTURES / "mgsm_id_sample.jsonl")
+            benchmark="gsm8k", language="zz", dataset_path=str(FIXTURES / "gsm8k_id_sample.jsonl")
         )
 
 
 def test_limit_applies():
     result = translated_benchmark(
-        benchmark="mgsm",
+        benchmark="gsm8k",
         language="id",
-        dataset_path=str(FIXTURES / "mgsm_id_sample.jsonl"),
+        dataset_path=str(FIXTURES / "gsm8k_id_sample.jsonl"),
         limit=1,
     )
     assert len(result.dataset) == 1

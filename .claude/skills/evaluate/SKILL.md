@@ -5,7 +5,7 @@ description: Write and run Inspect AI evaluations for this project, including LL
 
 # Evaluation (Inspect AI)
 
-Tasks live in `src/evals/tasks/`; the reference is `multilingual_qa.py` (parameterized `@task`, `model_graded_qa` scorer, domain/language metadata). Eval configs live in `configs/evals/` (template `_template.yaml`). Inspect docs serve markdown: `https://inspect.aisi.org.uk/<page>.html.md` (index `/llms.txt`).
+Tasks live in `src/evals/tasks/`. The primary task is `translated_benchmark.py`: one parameterized `@task` for every benchmark in `configs/benchmark/` and every language in `configs/language/`, with the solver and scorer chosen from the benchmark registry (numeric match or option letter; both language-agnostic), the translated instruction read from the dataset, and the standard error clustered by `source_id`. `multilingual_qa.py` (model-graded) is kept for secondary judged metrics. `docs/benchmarks.md` lists which standard Inspect tasks can be translated and what each needs. Inspect docs serve markdown: `https://inspect.aisi.org.uk/<page>.html.md` (index `/llms.txt`).
 
 ## Task pattern (keep tasks parameterized)
 
@@ -47,7 +47,7 @@ uv run inspect eval src/evals/tasks/multilingual_qa.py \
 - Built-ins: `model_graded_qa()` / `model_graded_fact()`; customize `template`, `instructions`, `grader_model`, multi-judge voting by passing a list of models.
 - Project judge prompts: `src/prompts/judge.py` (rubric + pairwise essay judges), `src/prompts/medical_tasks.py` (medical extraction + privacy judges).
 - **English-bias pitfall** (docs/research/4): LLM judges favor English/high-resource outputs. Grade with explicit rubrics, instruct the judge in the target language where feasible, and keep an English regression check (GSM8K/MMLU subset) per docs/research.md.
-- Full matrix: 6 finetune conditions x 5 eval languages x 5 domains = 150 runs; drive it as a loop over `configs/evals/*.yaml`, one wandb run per eval.
+- The matrix comes from `uv run python -m pipeline.plan format=commands stage=eval [tier=0]`; one log directory and one wandb run per cell; run every cell with `--limit 20` first. Two protocol constraints from the installed scorers: keep the literal `ANSWER:` marker in every translated instruction, and keep English number formatting (`1.500` scores as 1.5).
 
 ## Results -> wandb
 

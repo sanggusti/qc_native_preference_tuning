@@ -5,6 +5,7 @@ defaults:
 
 format: table     # table | commands
 stage: all        # all | datagen | finetune | eval
+tier: null        # null = every active condition; 0 = the minimum publishable unit only
 
 hydra:
   run:

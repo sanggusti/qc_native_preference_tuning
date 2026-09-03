@@ -8,7 +8,7 @@ Invoke the matching project skill before starting work on a stage:
 
 | Task | Skill |
 |---|---|
-| Start a new experiment (new config, new condition) | `new-experiment` |
+| Start a new experiment (new language, benchmark, condition or series) | `new-experiment` |
 | Create, translate, or enhance a dataset; build preference pairs; publish datasets | `datagen` |
 | Launch or monitor AutoScientist finetuning; publish models | `finetune` |
 | Write or run Inspect AI evals; judge setup; eval sweeps | `evaluate` |

@@ -10,14 +10,18 @@ Reference pipeline: `pipeline/datagenerator/evals_translate/mgsm_convert.py` (HF
 ## Lifecycle
 
 ```python
+import time
+
 from adaption import Adaption
 client = Adaption()  # reads ADAPTION_API_KEY
 
 # 1. Ingest (pick one)
 ds = client.datasets.upload_file("data.jsonl", name="medical-qa-src")        # local file helper
 ds = client.datasets.create_from_huggingface(url=..., files=[...])           # HF import
-# 2. Wait for async ingestion (row_count appears when ready; status "failed" = error)
-client.datasets.wait_for_completion(ds.dataset_id)   # or poll get_status until row_count
+# 2. Wait for async ingestion: poll get_status until row_count is set (status "failed" = error).
+#    Do NOT call wait_for_completion here: ingestion parks in "awaiting_input", which is not terminal.
+while client.datasets.get_status(ds.dataset_id).row_count is None:
+    time.sleep(2)
 # 3. Run adaptation
 client.datasets.run(
     ds.dataset_id,
@@ -26,9 +30,11 @@ client.datasets.run(
     brand_controls={"blueprint": "..."},       # freeform system prompt applied to every completion
 )
 result = client.datasets.wait_for_completion(ds.dataset_id, timeout=1800)
+if result.status == "failed":
+    raise RuntimeError(result.error_data.message)
 # 4. Quality + export
 client.datasets.get_evaluation(ds.dataset_id)  # source vs adapted quality signals
-url = client.datasets.download(ds.dataset_id)  # presigned URL
+client.datasets.download(ds.dataset_id, file_format="jsonl").write_to_file("adapted.jsonl")
 ```
 
 ## Key parameters
@@ -41,6 +47,8 @@ url = client.datasets.download(ds.dataset_id)  # presigned URL
 ## Gotchas
 
 - Ingestion and runs are async; never use a dataset before `row_count` is set. `wait_for_completion` raises on timeout but the server keeps processing.
+- For finetuning data the repo assembled itself (translated rows already in prompt/completion form), upload with `processing_mode="raw"` and an explicit `column_mapping` so no server-side augmentation touches the rows.
+- Language and benchmark parameters come from `configs/language/*.yaml` and `configs/benchmark/*.yaml`; the series naming in `configs/series/*.yaml` decides the HF repo id (`sanggusti/{benchmark}-{language}`, splits train and test).
 - AutoScientist later requires >= 1,000 rows; plan generation counts accordingly.
 - Supported uploads: csv, json, jsonl, parquet, pdf, docx, pptx, xlsx, html, zip, txt.
 - Smoke-test with `max_rows` small (Hydra override) before full runs; runs cost credits.

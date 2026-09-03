@@ -86,7 +86,7 @@ def instruction_template(dataset: Dataset) -> str:
 
 @task
 def translated_benchmark(
-    benchmark: str = "mgsm",
+    benchmark: str = "gsm8k",
     language: str = "id",
     dataset_path: str | None = None,
     split: str = "test",
@@ -96,7 +96,7 @@ def translated_benchmark(
     """Evaluate a model on a translated standard benchmark.
 
     Args:
-        benchmark: registry name under configs/benchmark/ (mgsm, medqa, ...).
+        benchmark: registry name under configs/benchmark/ (gsm8k, medqa, ...).
         language: language code under configs/language/ (id, jv, su, min, ace, en).
         dataset_path: local JSONL in the canonical schema; overrides the HF repo.
         split: HF split to load (test for evaluation).

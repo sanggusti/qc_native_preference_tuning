@@ -18,7 +18,7 @@
 
 ## Evaluation Metrics (How Performance is Scored)
 
-- **Accuracy / Pass@1**: For multiple-choice questions (like Global-MMLU-Lite, MMLU-ProX) or deterministic math answers (MGSM), the primary metric is straight accuracy—whether the model's final generated answer exactly matches the ground truth.
+- **Accuracy / Pass@1**: For multiple-choice questions (like Global-MMLU-Lite, MMLU-ProX) or deterministic math answers (MGSM), the primary metric is straight accuracy, whether the model's final generated answer exactly matches the ground truth.
 
 - **CHaRacter-level F-score (chrF)**: Because word boundaries and tokenization vary wildly across different scripts (e.g., Chinese characters vs. Arabic script), models like Gemma 3 use the CHaRacter-level F-score instead of word-level metrics. This is the standard metric applied to FLoRes, WMT24++, XQuAD, XOR QA, and IndicGenBench to precisely measure translation and generation quality.
 
