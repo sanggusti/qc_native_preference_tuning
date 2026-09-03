@@ -1,0 +1,12 @@
+code: en
+iso_639_3: eng
+name: English
+native_name: English
+flores_code: eng_Latn
+script: Latn
+family: Indo-European / Germanic
+resource_tier: high
+translation_register: null      # source language; no translation
+register_notes: Reference condition. Source benchmarks are already in English.
+nllb_supported: true
+xlmr_covered: true

@@ -1,0 +1,15 @@
+code: jv
+iso_639_3: jav
+name: Javanese
+native_name: Basa Jawa
+flores_code: jav_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Javanese
+resource_tier: low
+translation_register: ngoko
+register_notes: >-
+  Javanese has speech levels (ngoko, madya, krama). Ngoko is the most common written
+  register in web text and in existing NLP corpora (NusaX, NusaWrites); krama would be
+  a separate condition, not a drop-in substitute. Keep one register for the whole series.
+nllb_supported: true
+xlmr_covered: true

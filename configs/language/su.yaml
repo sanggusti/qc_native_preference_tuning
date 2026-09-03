@@ -1,0 +1,14 @@
+code: su
+iso_639_3: sun
+name: Sundanese
+native_name: Basa Sunda
+flores_code: sun_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Sundanese
+resource_tier: low
+translation_register: loma
+register_notes: >-
+  Sundanese has speech levels (undak usuk basa: loma/kasar, lemes). Loma is the
+  neutral everyday register used in most corpora. Keep one register for the series.
+nllb_supported: true
+xlmr_covered: true

@@ -1,0 +1,16 @@
+code: min
+iso_639_3: min
+name: Minangkabau
+native_name: Baso Minangkabau
+flores_code: min_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Malayic
+resource_tier: very_low
+translation_register: standard
+register_notes: >-
+  Minangkabau is lexically close to Indonesian and Malay, so translation quality gates
+  must check that outputs are Minangkabau rather than lightly modified Indonesian
+  (language identification plus a distinctiveness check). Use the Agam-Tanah Datar
+  variety as the written standard, matching FLORES-200 and NusaX.
+nllb_supported: true
+xlmr_covered: false

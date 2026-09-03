@@ -1,0 +1,64 @@
+# Experiment series S01: language as the medium of finetuning and evaluation.
+# Controlled-experiment constants live here. Changing any constant = a new series file.
+# docs/methodology.md is the pre-registered design this file implements.
+
+series: s01_language_medium
+question: >-
+  Holding base model, task content and training pipeline fixed, does the language in which a
+  model is finetuned and evaluated change task accuracy, and which language is the best medium?
+
+# Base model must be pinned to one id from client.training_models.list() before the first run.
+# Choice rationale and the pretraining-exposure covariate are in docs/methodology.md.
+base_model: null
+
+languages: [en, id, jv, su, min, ace]   # each must exist as configs/language/{code}.yaml
+benchmarks: [mgsm, medqa]               # each must exist as configs/benchmark/{name}.yaml
+
+# Conditions (train_language -> eval_language), see docs/methodology.md section 4.
+conditions:
+  base: {train: null, description: untuned base model evaluated in each language}
+  native: {train: same, description: finetune in L, evaluate in L (the primary contrast)}
+  english_anchor: {train: en, description: finetune in English, evaluate in L}
+  transfer: {train: other, description: finetune in L', evaluate in L (off-diagonal, optional)}
+  indonesian_anchor:
+    train: id
+    exclude_eval_languages: [en, id]   # regional languages only; id and en cells already exist
+    description: finetune in Indonesian, evaluate in a regional language (regional pivot)
+  pooled:
+    train: all
+    description: >-
+      one model finetuned on the pooled dataset (train_rows total, split evenly across the
+      series languages), evaluated in every language; the multilingual reference arm
+  regression:
+    train: other
+    eval_languages: [en]     # every non-English finetune is also scored on the English test split
+    description: English regression check for models finetuned in a regional language
+active_conditions: [base, native, english_anchor, indonesian_anchor, pooled, regression]
+
+seeds: [1, 2, 3]            # independent finetuning runs per cell; evals are deterministic
+train_rows: 1000            # identical item set (same source ids) across languages
+eval_rows: null             # null = full test split
+
+autoscientist:              # constants shared by every finetune run in the series
+  data_format: instruction
+  max_iterations: 3
+  target_win_rate: 0.7
+  augmentation_domain_rows: 0
+  augmentation_general_rows: 0
+
+generation:                 # eval-time decoding, identical for every cell
+  temperature: 0.0
+  max_tokens: 2048          # generous on purpose: tight caps distort cross-language gaps
+  epochs: 1
+
+covariates:                 # measured per language, reported alongside every result
+  - tokenizer_fertility     # tokens per source word on the eval split, base-model tokenizer
+  - translation_quality     # gate metrics from docs/methodology.md
+  - base_model_exposure     # base-model bits-per-byte on FLORES-200 devtest
+  - output_language_fidelity  # share of eval responses in the expected language
+
+naming:
+  hf_dataset: "sanggusti/{benchmark}-{language}"                       # splits: train, test
+  hf_model: "sanggusti/{benchmark}-{train_language}-{series}-seed{seed}"
+  wandb_project: qc_native_preference_tuning
+  wandb_run: "{stage}-{benchmark}-{language}-{condition}-seed{seed}"

@@ -1,0 +1,16 @@
+code: ace
+iso_639_3: ace
+name: Acehnese
+native_name: Bahsa Aceh
+flores_code: ace_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Chamic
+resource_tier: very_low
+translation_register: standard
+register_notes: >-
+  Acehnese is a Chamic language, more distant from Indonesian than Javanese,
+  Sundanese or Minangkabau. Expect the weakest LLM translation quality of the
+  set; the translation gate (docs/methodology.md) decides whether the language
+  enters a series or is deferred.
+nllb_supported: true
+xlmr_covered: false

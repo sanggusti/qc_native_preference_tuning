@@ -1,0 +1,33 @@
+name: medqa
+domain: medical
+inspect_reference: inspect_evals/medqa
+scorer: choice
+scorer_language_agnostic: true
+
+eval_source:
+  hf_repo: bigbio/med_qa
+  config: med_qa_en_bigbio_qa
+  split: test                # 1,273 USMLE-style 4-option items
+  fields:
+    question: question
+    choices: choices
+    answer: answer           # list with the correct option text; target letter derived by index
+
+train_source:
+  hf_repo: bigbio/med_qa
+  config: med_qa_en_bigbio_qa
+  split: train               # 10,178 items
+  fields:
+    question: question
+    choices: choices
+    answer: answer
+  min_rows: 1000
+
+translate:
+  fields: [question, choices]
+  preserve: [option order, the index of the correct option, drug names, units, lab values, abbreviations]
+  blueprint: >-
+    Translate the clinical vignette and every answer option into {language}. Keep the options
+    in the same order and do not merge or drop any option. Keep drug names, units, laboratory
+    values and standard abbreviations unchanged. Use the medical register a textbook would use.
+  prompt_template_key: multiple_choice_instruction   # "Answer the following ... ANSWER: $LETTER"

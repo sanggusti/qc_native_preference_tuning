@@ -1,0 +1,12 @@
+# Primary config for `python -m pipeline.plan`: expands a series into its experiment matrix.
+defaults:
+  - series: s01_language_medium
+  - _self_
+
+format: table     # table | commands
+stage: all        # all | datagen | finetune | eval
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null

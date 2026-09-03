@@ -1,0 +1,30 @@
+# Benchmark registry entry. Copy to configs/benchmark/{name}.yaml to add a standard task.
+# A benchmark contributes two parallel artifacts per language: a finetuning split and an
+# evaluation split, both translated from the same English source with the same blueprint.
+# Scoring must be language-agnostic (numeric match, choice letter, code execution) so that
+# the metric itself does not favor any language; see docs/methodology.md.
+
+name: null                 # registry key, used in HF repo names (sanggusti/{name}-{language})
+domain: null               # math | medical | programming | science | general
+inspect_reference: null    # inspect_evals task this mirrors (e.g. inspect_evals/mgsm)
+scorer: null               # numeric_match | choice | code_exec | exact_match
+scorer_language_agnostic: true
+
+eval_source:               # English test items (become the {language} test split)
+  hf_repo: null
+  config: null
+  split: test
+  fields: {}               # source column -> canonical column (question, answer, choices, target)
+
+train_source:              # English training items (become the {language} train split)
+  hf_repo: null
+  config: null
+  split: train
+  fields: {}
+  min_rows: 1000           # Adaption AutoScientist minimum per dataset
+
+translate:
+  fields: []               # columns rewritten by the translator
+  preserve: []             # things the blueprint must keep verbatim (numbers, option letters, code)
+  blueprint: null          # domain-specific translation instruction; {language} is substituted
+  prompt_template_key: null  # instruction template that must also be translated once per language
