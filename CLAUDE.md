@@ -11,7 +11,9 @@ Invoke the matching project skill before starting work on a stage:
 | Start a new experiment (new language, benchmark, condition or series) | `new-experiment` |
 | Create, translate, or enhance a dataset; build preference pairs; publish datasets | `datagen` |
 | Launch or monitor AutoScientist finetuning; publish models | `finetune` |
+| Run the transparent LoRA backend on Modal (condition `sft_check`, `pipeline/training/sft_finetune.py`) | `finetune` for the recipe constants and naming, then `compute` for the Modal job |
 | Write or run Inspect AI evals; judge setup; eval sweeps | `evaluate` |
+| Decide a tier, park or promote a benchmark or language, amend a pre-registered constant | `new-experiment` (tiers and amendments) |
 | Modal GPU jobs or Lightning AI compute/inference | `compute` |
 
 The `metr-*` skills are productivity-study tooling, unrelated to the research workflow.

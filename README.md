@@ -4,22 +4,22 @@ Evaluate finetuned LLMs on Indonesian low-resource language tasks using [Inspect
 
 ## Research Question
 
-Holding base model, task content and pipeline fixed, does the language used as the medium of finetuning and evaluation change task accuracy across Indonesian and its regional languages (Javanese, Sundanese, Minangkabau, Acehnese), and which language is the best medium? The proposal is in [docs/research.md](docs/research.md), the pre-registered design in [docs/methodology.md](docs/methodology.md), and the literature review in [docs/research/](docs/research/README.md).
+Holding base model, task content and pipeline fixed, which language of finetuning data gives the best accuracy when a model is evaluated in Indonesian or one of its regional languages (Javanese, Sundanese, Minangkabau, Acehnese): the target language itself, English, Indonesian as a pivot, or a pool of all of them? The cross-language ordering of accuracy is reported alongside with its covariates. The proposal is in [docs/research.md](docs/research.md), the pre-registered design in [docs/methodology.md](docs/methodology.md), and the literature review in [docs/research/](docs/research/README.md).
 
 ## Architecture
 
 ```
 Adaption (data enhancement & translation)
     ↓
-Finetuned model (via Adaption Autoscientists)
+Finetuned model (Adaption AutoScientist; a transparent LoRA loop on Modal repeats two cells)
     ↓
 Inspect AI (evaluation & tracing)
     ↓
 Results across domains × languages
 ```
 
-**Benchmarks:** gsm8k (math) and medqa (medical) first; other standard Inspect tasks through one registry file each (see [docs/benchmarks.md](docs/benchmarks.md))  
-**Languages:** English (en, reference), Indonesian (id), Javanese (jv), Sundanese (su), Minangkabau (min), Acehnese (ace); more through one registry file each
+**Benchmarks:** gsm8k (math) first; the second benchmark is decided in Phase 2 against stated criteria (medqa is the placeholder); other standard Inspect tasks through one registry file each (see [docs/benchmarks.md](docs/benchmarks.md))  
+**Languages:** English (en, reference), Indonesian (id), Javanese (jv), Sundanese (su), Minangkabau (min) in tier 0; Acehnese (ace) after the gate and the floor rule; more through one registry file each
 
 ## Quick Start
 
@@ -82,7 +82,7 @@ qc_native_preference_tuning/
 │   ├── plan.py                # expands a series into its matrix and commands
 │   ├── datagenerator/         # Dataset translation & enhancement
 │   ├── evals/                 # LitAI evaluation tools
-│   ├── training/              # finetuning stage (AutoScientist)
+│   ├── training/              # finetuning stages (AutoScientist, transparent LoRA on Modal)
 │   └── modal_runner/          # Modal cloud launcher
 ├── src/                       # Core library
 │   ├── evals/tasks/           # Inspect tasks (translated_benchmark, multilingual_qa)
@@ -94,7 +94,7 @@ qc_native_preference_tuning/
 
 ## Metrics
 
-**Primary:** accuracy under a language-agnostic scorer (numeric match for math, option letter for multiple choice), paired across languages by source item, with within-language contrasts (gain from native tuning, English-anchor advantage, regression) as the causal results and the cross-language ordering reported with its covariates.
+**Primary:** accuracy under a language-agnostic scorer (numeric match for math, option letter for multiple choice), paired across languages by source item, with within-language contrasts (Indonesian-pivot advantage, English-anchor advantage, gain from native tuning, regression, pooling) as the causal results, each with a difference and an equivalence verdict, and the cross-language ordering reported with its covariates.
 
 **Covariates reported with every result:** base-model exposure (bits per byte on FLORES-200), tokenizer fertility, translation quality gate results, output-language fidelity, output tokens.
 

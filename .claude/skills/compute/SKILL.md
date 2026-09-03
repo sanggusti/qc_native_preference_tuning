@@ -5,7 +5,7 @@ description: Run GPU or batch workloads on Modal and Lightning AI for this proje
 
 # Compute (Modal + Lightning AI)
 
-Routing: **Modal** = GPU work (inference on finetuned checkpoints, anything CUDA). **Lightning AI** = data processing, eval compute, and hosted LLM inference via `litai`. Managed finetuning does not need either; it runs on Adaption (see `finetune` skill).
+Routing: **Modal** = GPU work (inference on finetuned checkpoints, NLLB-200 translation, the transparent LoRA backend, anything CUDA). **Lightning AI** = data processing, eval compute, and hosted LLM inference via `litai`. Managed finetuning runs on Adaption (see `finetune` skill); the transparent backend (`sft_check` condition, `pipeline/training/sft_finetune.py`) runs here with peft and trl, seeds from the series `sft` block and hyperparameters copied from the pinned AutoScientist recommendation.
 
 ## Modal (GPU)
 
@@ -15,7 +15,7 @@ Reference: `pipeline/modal_runner/sample_modal_inference.py` (app `qc-native-pre
 import modal
 
 app = modal.App(name="qc-native-preference")
-image = modal.Image.debian_slim().uv_pip_install("torch", "transformers", "peft", "wandb", "datasets")
+image = modal.Image.debian_slim().uv_pip_install("torch", "transformers", "peft", "trl", "wandb", "datasets")
 
 @app.function(
     image=image,

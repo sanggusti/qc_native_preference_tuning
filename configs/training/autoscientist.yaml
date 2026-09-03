@@ -14,6 +14,7 @@ replicate: 1                  # fresh run with a new idempotency_key; the SDK ex
 # Derived by the planner from the series naming templates; never composed by hand
 train_dataset: null           # sanggusti/{benchmark}-{language}, split train, uploaded raw
 hub_model_id: null            # sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}
+                              # (the {backend_slug} of the template is empty for this backend)
 
 # Base model ids come from client.autoscientist.list_models(); training_models.list() is deprecated.
 # hyperparams are copied verbatim from the series file (one recommend_hyperparams call on the

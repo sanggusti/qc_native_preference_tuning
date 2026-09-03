@@ -46,9 +46,11 @@ Template: `configs/benchmark/_template.yaml`. Entries today: gsm8k, medqa.
 
 ### 2.3 Series: `configs/series/{series}.yaml`
 
-A series is one controlled experiment. It names the base models (`primary`, `contrast`), the languages, the benchmarks, the conditions with their tiers and restrictions, the active conditions, the replicates, the pinned AutoScientist and translation settings, the decoding settings, the covariates, and the naming templates. Changing any constant means a new series file; the old one stays as the record of what was run.
+A series is one controlled experiment. It names the base models (`primary`, `contrast`), the languages, the benchmarks, a `tiers` block that parks a benchmark or a language above the minimum publishable unit, the conditions with their tiers, restrictions and training backend, the active conditions, the replicates, the pinned AutoScientist, transparent-backend (`sft`) and translation settings, the decoding settings, the analysis constants (primary family, equivalence bound, target detectable difference, floor and ceiling rules), the covariates, and the naming templates. Changing any constant means a new series file; the old one stays as the record of what was run.
 
-Condition keys: `train` (`null`, `same`, `other`, `all`, or a language code), `tier`, `description`, and optionally `eval_languages`, `exclude_eval_languages`, `benchmarks`, `bases`, `eval_variant`.
+Condition keys: `train` (`null`, `same`, `other`, `all`, or a language code), `tier`, `description`, and optionally `eval_languages`, `exclude_eval_languages`, `benchmarks`, `bases`, `eval_variant`, `backend` (default `autoscientist`; any other backend needs an entry in `naming.backend_slugs` and the `{backend_slug}` slot in the model template).
+
+A cell's tier is the maximum of its condition tier, its benchmark tier (`tiers.benchmarks`) and the tiers of its evaluation and training languages (`tiers.languages`). Parking medqa at tier 3 or Acehnese at tier 2 is one line in the `tiers` block; no condition changes, and the cells reappear at their tier when the go/no-go rule passes.
 
 ## 3. The planner
 
@@ -61,9 +63,9 @@ uv run python -m pipeline.plan format=commands stage=eval
 uv run python -m pipeline.plan series=s02_adaptive      # another series file
 ```
 
-`pipeline/plan.py` loads the series through `src/utils/registry.py`, validates every referenced language, benchmark, base role and condition, expands the cells, de-duplicates cells that coincide (the English anchor evaluated in English is the native English cell), and prints counts per tier, per condition, and the command for every dataset, finetune and evaluation. Nothing in the planner submits work. The printed plan is pasted into `docs/experiments.md` before the first paid run of a series.
+`pipeline/plan.py` loads the series through `src/utils/registry.py`, validates every referenced language, benchmark, base role, condition, tier target and backend, expands the cells, de-duplicates cells that coincide (the English anchor evaluated in English is the native English cell), and prints counts per tier, per backend, per condition, and the command for every dataset, finetune and evaluation. Nothing in the planner submits work. The printed plan is pasted into `docs/experiments.md` before the first paid run of a series.
 
-For series S01 the planner reports 30 datasets (10 translated train and test repositories, 2 English source repositories, 10 round-trip splits, 6 digit re-instantiated splits, 2 pooled training sets), 60 finetunes and 255 evaluation runs, of which tier 0 is 36 finetunes and 162 evaluations.
+For series S01 the planner reports 30 datasets (10 translated train and test repositories, 2 English source repositories, 10 round-trip splits, 6 digit re-instantiated splits, 2 pooled training sets), 66 finetunes (60 on the managed backend, 6 on the transparent one) and 261 evaluation runs. Tier 0, gsm8k on en, id, jv, su and min, is 14 datasets, 15 finetunes and 85 evaluations.
 
 ## 4. Naming
 
@@ -72,12 +74,13 @@ For series S01 the planner reports 30 datasets (10 translated train and test rep
 | Dataset | `sanggusti/{benchmark}-{language}` with splits `train` and `test` | `sanggusti/gsm8k-jv` |
 | Derived eval split | `sanggusti/{benchmark}-{language}-{variant}` | `sanggusti/gsm8k-jv-rt` |
 | Pooled training set | `sanggusti/{benchmark}-all` | `sanggusti/medqa-all` |
-| Model | `sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}` | `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1` |
+| Model | `sanggusti/{benchmark}-{train_language}-{series}-{base}{backend_slug}-r{replicate}` | `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1` |
+| Model, transparent backend | same template; `backend_slug` is `-sft` | `sanggusti/gsm8k-id-s01_language_medium-gemma3-4b-sft-r1` |
 | wandb project | `qc_native_preference_tuning` | |
 | wandb run | `{stage}-{benchmark}-{language}-{condition}-{base}-r{replicate}` | `eval-gsm8k-jv-native-gemma3-4b-r1` |
 | wandb tags | benchmark, language, condition, base role, series | |
 
-Base slugs are declared in the series file (`naming.base_slugs`). Names are produced only by `expand_matrix`; no stage composes a name by hand.
+Base and backend slugs are declared in the series file (`naming.base_slugs`, `naming.backend_slugs`; the default backend's slug is empty). Names are produced only by `expand_matrix`; no stage composes a name by hand.
 
 ## 5. Stage commands
 
@@ -97,12 +100,17 @@ uv run python -m pipeline.training.autoscientist_finetune series=s01_language_me
     benchmark=gsm8k base=primary language=jv replicate=1 \
     hub_model_id=sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1
 
+# finetune, transparent backend (planned module): the sft_check cells, plain LoRA on Modal with a fixed seed
+uv run python -m pipeline.training.sft_finetune series=s01_language_medium \
+    benchmark=gsm8k base=primary language=id replicate=1 \
+    hub_model_id=sanggusti/gsm8k-id-s01_language_medium-gemma3-4b-sft-r1
+
 # eval (runnable): one Inspect run per cell; base cells use the same hf/ provider as finetuned cells
 uv run inspect eval src/evals/tasks/translated_benchmark.py --model hf/sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1 \
     -T benchmark=gsm8k -T language=jv -T dataset_repo=sanggusti/gsm8k-jv \
     --temperature 0.0 --max-tokens 2048 \
-    --metadata condition=native --metadata train_language=jv --metadata base=primary \
-    --metadata replicate=1 --metadata series=s01_language_medium
+    --metadata condition=native --metadata train_language=jv --metadata backend=autoscientist \
+    --metadata base=primary --metadata replicate=1 --metadata series=s01_language_medium
 
 # derived split (round trip): the planner adds -T variant and the suffixed repo
 uv run inspect eval src/evals/tasks/translated_benchmark.py --model hf/sanggusti/gsm8k-en-s01_language_medium-gemma3-4b-r1 \
@@ -158,6 +166,7 @@ Remaining stage modules, in the order the phases need them (tracked in `docs/exp
 | `pipeline/datagenerator/derive_split.py` | round-trip, NLLB-200 and digit re-instantiation splits, calling the NLLB job |
 | `pipeline/datagenerator/pool_benchmark.py` | the pooled training set at equal total rows |
 | `pipeline/training/autoscientist_finetune.py` | pinned create call, `best_hyperparams` check, artifact download, Hub push, wandb logging |
+| `pipeline/training/sft_finetune.py` | the transparent backend: LoRA SFT on Modal with the pinned hyperparameters copied field by field and a fixed seed per replicate; Hub push under the `-sft` slug; wandb logging |
 | `pipeline/evals/serve_modal.py` | one vLLM server per checkpoint, Inspect through the OpenAI-compatible provider, smoke wrapper |
 | `src/analysis/` | log reader, paired bootstrap, mixed models, contrast tables with corrections, figures, the identification statement |
 

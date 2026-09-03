@@ -156,21 +156,22 @@ def pipeline_flow():
 def design():
     d = Diagram("language_medium_design")
     langs = ["en", "id", "jv", "su", "min", "ace"]
-    d.note("<b>Experiment matrix, series S01.</b> Rows: what the evaluated model was finetuned on. Columns: language of the evaluation items. Every cell uses the same source items translated per language, the same pinned finetuning recipe and a language-agnostic scorer. Tier 0 rows are the minimum publishable unit; tier 1 repeats native and english_anchor on a size-matched contrast base model (gsm8k only); tier 2 adds the pooled and Indonesian-anchor arms.", 20, 20, 1000, 80)
+    d.note("<b>Experiment matrix, series S01.</b> Rows: what the evaluated model was finetuned on. Columns: language of the evaluation items. Every cell uses the same source items translated per language, the same pinned finetuning recipe and a language-agnostic scorer. Tier 0 rows are the minimum publishable unit (gsm8k on en, id, jv, su, min; the Indonesian pivot costs evaluations only); tier 1 adds the transparent-backend check on en and id and repeats native and english_anchor on a size-matched contrast base model; tier 2 adds Acehnese and the pooled arm; the second benchmark is tier 3.", 20, 20, 1000, 80)
     x0, y0, cw, ch = 300, 120, 130, 58
     d.box("finetune condition \\ eval language", 20, y0, 270, ch, "config")
     for j, code in enumerate(langs):
-        d.box(code, x0 + j * cw, y0, cw - 10, ch, "config")
+        d.box("ace (tier 2)" if code == "ace" else code, x0 + j * cw, y0, cw - 10, ch, "config")
     rows = [
         ("tier 0  base: no finetuning", "B(L)", ["all"], "track"),
         ("tier 0  native: finetuned in L", "A(L)", ["diag"], "train"),
         ("tier 0  english_anchor: finetuned in en", "A_en(L)", ["all"], "eval"),
+        ("tier 0  indonesian_anchor: finetuned in id (the pivot)", "A_id(L)", ["jv", "su", "min", "ace"], "eval"),
         ("tier 0  regression: finetuned in L, scored in en", "R(L)", ["en"], "gate"),
         ("tier 0  round_trip: en model on L back-translated to en", "RT(L)", ["jv", "su", "min", "ace", "id"], "gate"),
         ("tier 0  base_pro1 / native_pro1: digit re-instantiated gsm8k", "P(L)", ["all"], "gate"),
-        ("tier 2  indonesian_anchor: finetuned in id", "A_id(L)", ["jv", "su", "min", "ace"], "eval"),
-        ("tier 2  pooled: one model on all languages", "A_all(L)", ["all"], "outcome"),
+        ("tier 1  sft_check: same recipe, transparent LoRA loop, fixed seeds", "A^sft(L)", ["en", "id"], "measure"),
         ("tier 1  native + english_anchor on the contrast base", "A^B(L)", ["all"], "measure"),
+        ("tier 2  pooled: one model on all languages", "A_all(L)", ["all"], "outcome"),
     ]
     for i, (name, est, cells, kind) in enumerate(rows):
         y = y0 + (i + 1) * ch
@@ -183,9 +184,9 @@ def design():
             if cells == ["en"] and code == "en":
                 label = "R(id..ace)"
             d.box(label, x0 + j * cw, y, cw - 10, ch - 5, kind if label else "plain")
-    y = y0 + 10 * ch + 20
-    d.note("<b>Estimands per language L</b><br>B(L) base level; A(L) native accuracy; G(L) = A(L) - B(L) gain from native tuning; Delta_en(L) = A_en(L) - A(L) anchor advantage;<br>Reg(L) English regression; A(en) - RT(L) translator-loss bound; P(L) contamination drop on re-instantiated digits; tau(L, L') = A(L) - A(L') the descriptive cross-language contrast.", 20, y, 560, 90)
-    d.note("<b>Replication and inference</b><br>3 replicate finetunes per model (count confirmed by a variance pilot); items paired across languages by source id;<br>paired item bootstrap and a mixed-effects logistic model; Holm on the primary family.", 600, y, 480, 90)
+    y = y0 + (len(rows) + 1) * ch + 20
+    d.note("<b>Estimands per language L</b><br>B(L) base level; A(L) native accuracy; Delta_id(L) = A_id(L) - A(L) pivot advantage; Delta_en(L) = A_en(L) - A(L) anchor advantage; G(L) = A(L) - B(L) gain;<br>Reg(L) English regression; A(en) - RT(L) translator-loss bound; P(L) contamination drop; A^sft(L) - A(L) platform check; tau(L, L') = A(L) - A(L') the descriptive cross-language contrast.", 20, y, 560, 90)
+    d.note("<b>Replication and inference</b><br>3 replicate finetunes per model (count confirmed by a variance pilot); items paired across languages by source id;<br>paired item bootstrap and a mixed-effects logistic model; Holm on the primary family (Delta_en, Delta_id) with equivalence verdicts at 3 points.", 600, y, 480, 90)
     d.note("<b>Covariates reported next to every cell</b><br>base-model bits per byte on FLORES-200, tokenizer fertility per item, translation quality columns per item, Indonesian leakage, output-language fidelity, output tokens and cap hits.", 20, y + 100, 560, 80)
     d.note("<b>Adding a language</b><br>one file configs/language/{code}.yaml plus the code in the series list; the matrix, names and commands follow from pipeline/plan.py.", 600, y + 100, 480, 80)
     return d

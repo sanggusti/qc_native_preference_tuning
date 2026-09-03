@@ -1,17 +1,25 @@
-# Experiment series S01: language as the medium of finetuning and evaluation.
+# Experiment series S01: which language should be the medium of finetuning data when a model is
+# evaluated in Indonesian or one of its regional languages? The arms are the practitioner's
+# options: translate the training data into the target language (native), keep it in English
+# (english_anchor), pivot through Indonesian (indonesian_anchor) or pool the languages (pooled),
+# all evaluated on the same items in the target language. The cross-language ordering of
+# accuracy is reported alongside as a descriptive result.
 # Controlled-experiment constants live here. Changing any constant = a new series file.
 # docs/methodology.md is the pre-registered design this file implements; docs/reproducibility.md
 # explains how the matrix is derived from this file.
 
 series: s01_language_medium
 question: >-
-  Holding base model, task content and training pipeline fixed, does the language in which a
-  model is finetuned and evaluated change task accuracy, and which language is the best medium?
+  Holding base model, task content and training pipeline fixed, which language of finetuning
+  data gives the best accuracy when the model is evaluated in Indonesian or one of its regional
+  languages: the target language itself, English, Indonesian as a pivot, or a pool of all of
+  them? Does the answer depend on the language, and how much of the cross-language ordering is
+  explained by exposure, translation quality and tokenization?
 
 # Base models are a factor, not only a constant: `primary` carries every condition; `contrast`
 # is a size-matched model with a different documented exposure profile, used only by the
 # identification-tier conditions. Both must be ids from client.autoscientist.list_models() and
-# are provisional until the Phase 2 checks in docs/methodology.md section 11 confirm them.
+# are provisional until the Phase 2 floor rule in `analysis.floor` picks the size (issue #63).
 base_models:
   primary: google/gemma-3-4b-it
   contrast: meta-llama/Llama-3.2-3B-Instruct
@@ -19,14 +27,30 @@ base_models:
 languages: [en, id, jv, su, min, ace]   # each must exist as configs/language/{code}.yaml
 benchmarks: [gsm8k, medqa]              # each must exist as configs/benchmark/{name}.yaml
 
+# A cell's tier is the maximum of its condition tier, its benchmark tier and the tiers of its
+# evaluation and training languages. Tier 0 is the minimum publishable unit: gsm8k on the five
+# languages expected to clear the floor rule, with the native, English-anchor and
+# Indonesian-pivot arms. Higher tiers are bought only after the go/no-go rules of
+# docs/methodology.md section 11 pass.
+tiers:
+  benchmarks: {medqa: 3}   # parked until the second-benchmark decision (issue #62)
+  languages: {ace: 2}      # enters after the Phase 1 gate and the Phase 2 floor rule (issues #59, #63)
+
 # Conditions (train_language -> eval_language). Optional keys: eval_languages (restrict),
-# exclude_eval_languages, benchmarks (restrict), bases (default [primary]),
-# eval_variant (evaluate on a derived test split such as rt). Tier 0 is the minimum
-# publishable unit; higher tiers are bought only after the go/no-go rules pass.
+# exclude_eval_languages, benchmarks (restrict), bases (default [primary]), backend (default
+# autoscientist; any other needs a naming.backend_slugs entry), eval_variant (evaluate on a
+# derived test split such as rt).
 conditions:
   base: {train: null, tier: 0, description: untuned base model evaluated in each language}
   native: {train: same, tier: 0, description: finetune in L, evaluate in L (the primary within-language cell)}
   english_anchor: {train: en, tier: 0, description: finetune in English, evaluate in L}
+  indonesian_anchor:
+    train: id
+    tier: 0
+    exclude_eval_languages: [en, id]   # regional languages only; id and en cells already exist
+    description: >-
+      finetune in Indonesian, evaluate in a regional language (the pivot arm; the one contrast
+      specific to this language family, and evaluation-only since the id native model exists)
   regression:
     train: other
     tier: 0
@@ -50,17 +74,15 @@ conditions:
     eval_variant: pro1
     benchmarks: [gsm8k]
     description: native finetunes on the re-instantiated split; the English drop is the contamination signal
-  indonesian_anchor:
-    train: id
-    tier: 2
-    exclude_eval_languages: [en, id]   # regional languages only; id and en cells already exist
-    description: finetune in Indonesian, evaluate in a regional language (regional pivot)
-  pooled:
-    train: all
-    tier: 2
+  sft_check:
+    train: same
+    tier: 1
+    backend: sft
+    eval_languages: [en, id]
+    benchmarks: [gsm8k]
     description: >-
-      one model finetuned on the pooled dataset (train_rows total, split evenly across the
-      series languages), evaluated in every language; the multilingual reference arm
+      the same recipe on a plain LoRA loop with fixed seeds (Modal); the platform-independence
+      check for the managed finetuning service (issue #61)
   native_contrast:
     train: same
     tier: 1
@@ -73,18 +95,25 @@ conditions:
     bases: [contrast]
     benchmarks: [gsm8k]
     description: English-anchor cells on the contrast base model
+  pooled:
+    train: all
+    tier: 2
+    description: >-
+      one model finetuned on the pooled dataset (train_rows total, split evenly across the
+      admitted languages), evaluated in every language; the multilingual reference arm
 active_conditions:
   - base
   - native
   - english_anchor
+  - indonesian_anchor
   - regression
   - round_trip
   - base_pro1
   - native_pro1
-  - indonesian_anchor
-  - pooled
+  - sft_check
   - native_contrast
   - english_anchor_contrast
+  - pooled
 
 # A replicate is a fresh AutoScientist run with identical arguments and a new idempotency_key
 # (the SDK exposes no seed). The count is confirmed by the Phase 4 variance probe.
@@ -92,7 +121,7 @@ replicates: [1, 2, 3]
 train_rows: 1000            # identical item set (same source ids) across languages
 eval_rows: null             # null = full test split
 
-autoscientist:              # constants shared by every finetune run in the series
+autoscientist:              # constants shared by every finetune run on the managed backend
   data_format: instruction
   max_iterations: 1         # one training cycle; the assumption that no server-side data
                             # optimization runs inside it is checked in Phase 4 (iterations_completed,
@@ -109,6 +138,12 @@ autoscientist:              # constants shared by every finetune run in the seri
                             # of the primary base, then copied verbatim into every run of the series
   hyperparams_source: null  # dataset id and date of that recommend_hyperparams call
 
+sft:                        # constants for the transparent backend (condition sft_check, issue #61)
+  hyperparams: from_autoscientist   # copied field by field from autoscientist.hyperparams once filled
+  seeds: [11, 22, 33]       # replicate r trains with seeds[r - 1]; the one thing the managed loop cannot pin
+  gpu: A100
+  timeout: 7200
+
 translation:                # pinned Adaption run settings, identical for every language
   route: blueprint          # language_expansion is probed first with estimate=True; see methodology 5
   recipes: {prompt_rephrase: false, deduplication: false, reasoning_traces: false}
@@ -121,6 +156,14 @@ generation:                 # eval-time decoding, identical for every cell
   max_tokens: 2048          # generous on purpose: tight caps distort cross-language gaps
   epochs: 1
 
+analysis:                   # pre-registered constants of docs/methodology.md sections 2, 4.1 and 10
+  primary_family: delta_en          # Delta_en(L) for the five non-English languages, Holm per benchmark
+  equivalence_bound_points: 3.0     # TOST bound for Delta_en and Delta_id (issue #64)
+  target_mde_points: 5.0            # the replicate rule targets this minimum detectable difference
+  floor:                            # Phase 2 base-model selection: untuned accuracy on 250-item subsets
+    gsm8k: {id: 0.30, min: 0.15}    # a language below floor contributes nothing to any contrast
+  ceiling: {en: 0.80}               # English cells need headroom below the ceiling
+
 covariates:                 # measured per language (and per item where noted), reported with every result
   - tokenizer_fertility       # tokens per source word, per base tokenizer, per item
   - bits_per_byte             # base-model bits per byte on FLORES-200 devtest
@@ -132,7 +175,8 @@ covariates:                 # measured per language (and per item where noted), 
 naming:
   model_provider: hf        # Inspect provider prefix applied to every evaluated model, base or finetuned
   hf_dataset: "sanggusti/{benchmark}-{language}"                       # splits: train, test; variants as -rt, -nllb, -pro1
-  hf_model: "sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}"
+  hf_model: "sanggusti/{benchmark}-{train_language}-{series}-{base}{backend_slug}-r{replicate}"
   base_slugs: {primary: gemma3-4b, contrast: llama32-3b}
+  backend_slugs: {autoscientist: "", sft: "-sft"}                     # empty for the default backend
   wandb_project: qc_native_preference_tuning
   wandb_run: "{stage}-{benchmark}-{language}-{condition}-{base}-r{replicate}"

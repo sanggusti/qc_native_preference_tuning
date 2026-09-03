@@ -1,0 +1,26 @@
+# Per-run override schema for pipeline/training/sft_finetune.py (planned module, issue #61):
+# the transparent LoRA backend used by the sft_check condition. The recipe constants come from
+# the series file (`autoscientist.hyperparams`, copied field by field, and the `sft` block with
+# seeds, GPU and timeout); this file only names the per-run values the planner passes.
+# Consumed as: uv run python -m pipeline.training.sft_finetune series=... benchmark=...
+#              base=primary language=id replicate=1 hub_model_id=...
+
+series: s01_language_medium   # series whose constants apply
+benchmark: null               # registry name under configs/benchmark/
+base: primary                 # base model role in the series (primary | contrast)
+language: null                # train language code
+replicate: 1                  # seed = series.sft.seeds[replicate - 1]
+
+# Derived by the planner from the series naming templates; never composed by hand
+train_dataset: null           # sanggusti/{benchmark}-{language}, split train (the published rows)
+hub_model_id: null            # sanggusti/{benchmark}-{train_language}-{series}-{base}-sft-r{replicate}
+
+# Runs on Modal (app qc-native-preference, secrets huggingface and wandb). The module refuses to
+# run while the series `autoscientist.hyperparams` is null: the point of the check is an identical
+# recipe on a loop whose seed, optimizer and data are visible.
+max_rows: null                # smoke runs set a small value first
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null

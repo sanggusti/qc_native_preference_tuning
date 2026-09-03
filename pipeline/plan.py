@@ -28,6 +28,13 @@ from src.utils.registry import (  # noqa: E402
     unique_finetunes,
 )
 
+# One stage module per training backend. The managed loop is the default; `sft` is the
+# transparent LoRA loop with fixed seeds used by the platform-independence check.
+FINETUNE_ENTRY_POINTS = {
+    "autoscientist": "pipeline.training.autoscientist_finetune",
+    "sft": "pipeline.training.sft_finetune",
+}
+
 
 def render_table(series: DictConfig, cells: list[dict]) -> str:
     finetunes = unique_finetunes(cells)
@@ -37,6 +44,7 @@ def render_table(series: DictConfig, cells: list[dict]) -> str:
         f"base models: {dict(series.base_models)}",
         f"languages: {list(series.languages)}",
         f"benchmarks: {list(series.benchmarks)}",
+        f"tiers: {dict((k, dict(v)) for k, v in (series.get('tiers') or {}).items())}",
         f"conditions: {list(series.active_conditions)}",
         f"replicates: {list(series.replicates)}",
         "",
@@ -51,15 +59,22 @@ def render_table(series: DictConfig, cells: list[dict]) -> str:
         n_ev = sum(1 for c in cells if c["tier"] == tier)
         lines.append(f"  tier {tier}: {n_ft:>3} / {n_ev:>3}")
     lines.append("")
+    lines.append("finetune runs per backend:")
+    for backend, count in sorted(Counter(f["backend"] for f in finetunes).items()):
+        lines.append(f"  {backend:<24}{count}")
+    lines.append("")
     lines.append("eval runs per condition:")
     for condition, count in sorted(Counter(c["condition"] for c in cells).items()):
         lines.append(f"  {condition:<24}{count}")
     lines.append("")
-    lines.append("benchmark  eval  variant  condition               base      train  rep  model")
+    lines.append(
+        "tier benchmark  eval  variant  condition               base      train  backend        rep  model"
+    )
     for cell in cells:
         lines.append(
-            f"{cell['benchmark']:<10} {cell['eval_language']:<5} {cell['eval_variant'] or '-':<8} "
-            f"{cell['condition']:<23} {cell['base_role']:<9} {cell['train_language'] or '-':<6} "
+            f"{cell['tier']:<4} {cell['benchmark']:<10} {cell['eval_language']:<5} "
+            f"{cell['eval_variant'] or '-':<8} {cell['condition']:<23} {cell['base_role']:<9} "
+            f"{cell['train_language'] or '-':<6} {cell['backend'] or '-':<14} "
             f"{cell['replicate']:<4} {cell['model']}"
         )
     return "\n".join(lines)
@@ -97,11 +112,14 @@ def render_commands(series: DictConfig, cells: list[dict], stage: str) -> str:
             )
     if stage in ("all", "finetune"):
         lines.append(
-            "# finetune: one AutoScientist run per benchmark x base x train language x replicate"
+            "# finetune: one run per benchmark x base x train language x backend x replicate"
         )
         for job in unique_finetunes(cells):
+            module = FINETUNE_ENTRY_POINTS.get(job["backend"])
+            if module is None:
+                raise ValueError(f"no finetune entry point for backend {job['backend']!r}")
             lines.append(
-                "uv run python -m pipeline.training.autoscientist_finetune "
+                f"uv run python -m {module} "
                 f"series={series.series} benchmark={job['benchmark']} "
                 f"base={job['base_role']} language={job['train_language']} "
                 f"replicate={job['replicate']} hub_model_id={job['model']}"
@@ -121,6 +139,7 @@ def render_commands(series: DictConfig, cells: list[dict], stage: str) -> str:
                 f"--max-tokens {series.generation.max_tokens} "
                 f"--metadata condition={cell['condition']} "
                 f"--metadata train_language={cell['train_language'] or 'none'} "
+                f"--metadata backend={cell['backend'] or 'none'} "
                 f"--metadata base={cell['base_role']} "
                 f"--metadata replicate={cell['replicate']} --metadata series={series.series}"
             )

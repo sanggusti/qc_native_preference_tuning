@@ -2,11 +2,11 @@
 
 ## Project overview
 
-Research codebase for **native-language preference tuning**: holding base model, task content and pipeline fixed, does the language used as the medium of finetuning and evaluation change LLM task accuracy across Indonesian and its regional languages (English `en` as reference, Indonesian `id`, Javanese `jv`, Sundanese `su`, Minangkabau `min`, Acehnese `ace`, more to be added), and which language is the best medium? Experiments cross benchmarks (gsm8k and medqa first, other standard Inspect tasks later) x languages x finetuning conditions, with the same items translated per language. The proposal is `docs/research.md`, the pre-registered design is `docs/methodology.md`, the mechanics are `docs/reproducibility.md`, and the literature review is in `docs/research/`.
+Research codebase on the **language of finetuning data** for Indonesian and its regional languages: holding base model, task content and pipeline fixed, when a model is evaluated in a target language (Indonesian `id`, Javanese `jv`, Sundanese `su`, Minangkabau `min`, Acehnese `ace`, English `en` as reference, more to be added), is it better finetuned on data translated into that language, kept in English, translated into Indonesian as a pivot, or pooled across the languages? The cross-language ordering of accuracy is reported alongside with its covariates (exposure, translation quality, tokenizer fertility); a claim that one language is a "smarter" medium is not estimable with this design and is not made. Experiments cross benchmarks (gsm8k first; the second benchmark is decided in Phase 2, other standard Inspect tasks later) x languages x finetuning conditions, with the same items translated per language. The proposal is `docs/research.md`, the pre-registered design is `docs/methodology.md`, the mechanics are `docs/reproducibility.md`, and the literature review is in `docs/research/`.
 
 This is a research repo, not a product. The workflow is tool-driven:
 
-**Adaption** (dataset enhancement + finetuning) -> **HuggingFace Hub** (publish datasets/models) -> **Inspect AI** (evals) -> **wandb** (experiment tracking), with compute on **Modal** (GPU) and **Lightning AI** (data processing, evals, hosted inference).
+**Adaption** (dataset enhancement + managed finetuning) -> **HuggingFace Hub** (publish datasets/models) -> **Inspect AI** (evals) -> **wandb** (experiment tracking), with compute on **Modal** (GPU: inference, NLLB, and the transparent LoRA backend that checks the managed one) and **Lightning AI** (data processing, evals, hosted inference).
 
 ## Setup and commands
 
@@ -24,7 +24,8 @@ Use the platform built for the job. Do not hand-roll what a platform already doe
 | Need | Tool | Entry point |
 | --- | --- | --- |
 | Dataset enhancement, translation, preference pairs | Adaption Adaptive Data (`client.datasets`) | `pipeline/datagenerator/` |
-| Finetuning (managed SFT loop) | Adaption AutoScientist (`client.autoscientist`) | `pipeline/training/` |
+| Finetuning (managed SFT loop, the default backend) | Adaption AutoScientist (`client.autoscientist`) | `pipeline/training/autoscientist_finetune.py` |
+| Finetuning (transparent backend `sft`: plain LoRA with fixed seeds, the platform-independence check) | Modal with peft and trl | `pipeline/training/sft_finetune.py` |
 | Evaluations | Inspect AI tasks | `src/evals/tasks/` |
 | Experiment tracking, run metadata | wandb | wraps every stage |
 | Publishing datasets and models | HF Hub (`push_to_hub`) | after datagen / finetune |
@@ -37,19 +38,19 @@ Reuse existing functions before writing new ones. Reference implementations: `pi
 
 **Pipelines are generic; experiments are configs.** This is mandatory.
 
-- Three registries define an experiment: `configs/language/{code}.yaml` (one file per language), `configs/benchmark/{name}.yaml` (one file per standard task; the scorer must be language-agnostic), and `configs/series/{series}.yaml` (base models, languages, benchmarks, conditions with tiers, replicates, pinned AutoScientist and translation constants, naming templates). Templates: `configs/language/_template.yaml`, `configs/benchmark/_template.yaml`; stage-level templates remain under `configs/datagenerator/`, `configs/evals/`, `configs/training/`.
-- `uv run python -m pipeline.plan [series=...] [tier=0] [format=commands stage=datagen|finetune|eval]` expands a series into every dataset, finetune and eval cell with its derived names and command. Paste the plan into `docs/experiments.md` before the first paid run of a series.
-- Never hardcode experiment parameters (language, benchmark, model, dataset repo, row counts, register) in pipeline code. New language or benchmark = one registry file plus its code in the series list; new experiment = new series file plus CLI overrides, reusing the existing stage modules.
+- Three registries define an experiment: `configs/language/{code}.yaml` (one file per language), `configs/benchmark/{name}.yaml` (one file per standard task; the scorer must be language-agnostic), and `configs/series/{series}.yaml` (base models, languages, benchmarks, a `tiers` block that parks a benchmark or a language above the minimum publishable unit, conditions with tiers and an optional training `backend`, replicates, pinned AutoScientist, `sft` and translation constants, `analysis` constants such as the equivalence bound and the floor rule, naming templates). Templates: `configs/language/_template.yaml`, `configs/benchmark/_template.yaml`; stage-level templates remain under `configs/datagenerator/`, `configs/evals/`, `configs/training/`.
+- `uv run python -m pipeline.plan [series=...] [tier=0] [format=commands stage=datagen|finetune|eval]` expands a series into every dataset, finetune and eval cell with its derived names and command. A cell's tier is the maximum of its condition, benchmark and language tiers; `tier=0` is the minimum publishable unit and tiers are bought in order, each after its go/no-go rule in `docs/methodology.md` section 11. Paste the plan into `docs/experiments.md` before the first paid run of a series.
+- Never hardcode experiment parameters (language, benchmark, model, dataset repo, row counts, register, seeds, bounds) in pipeline code. New language or benchmark = one registry file plus its code in the series list (and a `tiers` entry if it must wait for a gate); new experiment = new series file plus CLI overrides, reusing the existing stage modules. Parking or promoting a benchmark, a language or a condition is a tier change in the series file, never a deletion.
 - If a pipeline can't express a new experiment, extend it with new config keys, keeping old configs working.
 - Register each series in `docs/experiments.md` (config path, plan counts, HF artifacts, wandb runs, spend ledger, amendments).
 
 ### Naming conventions
 
 - HF datasets: `sanggusti/{benchmark}-{language}` with splits `train` and `test` (e.g. `sanggusti/gsm8k-jv`); derived eval splits add a suffix (`-rt`, `-nllb`, `-pro1`); the pooled training set is `sanggusti/{benchmark}-all`.
-- HF models: `sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}` (e.g. `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1`).
+- HF models: `sanggusti/{benchmark}-{train_language}-{series}-{base}{backend_slug}-r{replicate}` (e.g. `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1`; the transparent backend adds `-sft`, e.g. `sanggusti/gsm8k-id-s01_language_medium-gemma3-4b-sft-r1`).
 - wandb: project `qc_native_preference_tuning`, run name `{stage}-{benchmark}-{language}-{condition}-{base}-r{replicate}` (stages: `datagen`, `finetune`, `eval`), tags for benchmark, language, condition, base role and series. Log the resolved Hydra config as the wandb run config.
 - Names are produced only by `src/utils/registry.py:expand_matrix` from the series `naming` templates; no stage composes a name by hand.
-- Controlled-experiment constants: same base models (ids from `client.autoscientist.list_models()`; `training_models.list()` is deprecated), same `max_iterations`, `target_win_rate`, augmentation rows, `data_format`, pinned `hyperparams`, translation settings and decoding settings across every condition of a series. Changing a constant means a new series file, not an edit to an existing one.
+- Controlled-experiment constants: same base models (ids from `client.autoscientist.list_models()`; `training_models.list()` is deprecated), same `max_iterations`, `target_win_rate`, augmentation rows, `data_format`, pinned `hyperparams`, the `sft` block (seeds, GPU, timeout; hyperparameters copied from the pinned AutoScientist recommendation), translation settings, decoding settings and the `analysis` block (primary family, equivalence bound, target detectable difference, floor and ceiling rules) across every condition of a series. Changing a constant means a new series file, not an edit to an existing one; a decision the design defers to a phase (the second benchmark, the base size) is recorded as an amendment in `docs/experiments.md`.
 
 ## Testing
 
@@ -70,6 +71,7 @@ Adaption runs, AutoScientist training, Modal GPU jobs, and eval sweeps cost mone
 - Tracking: wandb run will be created with the conventions above.
 - Cost/timeout: value and justification (e.g. AutoScientist `max_iterations=3` on a 3B model; Modal `timeout=` set).
 - Smoke first: run with `max_rows`/`--limit` small before the full run.
+- Tier and floor: the cell's tier is at or below the tier whose go/no-go rule has passed (`uv run python -m pipeline.plan tier=N` lists it), and for a finetune or a full-split translation the language cleared the Phase 2 floor rule (`analysis.floor`) on the pinned base, with the numbers in `docs/experiments.md`.
 
 ## Environment
 
