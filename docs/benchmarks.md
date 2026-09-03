@@ -64,6 +64,14 @@ Legend for the scorer column: agnostic (numeric, letter or execution), English-d
 - `inspect_ai.analysis.samples_df` exports per-sample scores and `metadata_*` columns for the paired analysis outside Inspect.
 - Task and eval metadata merge into the log; sample metadata is available to solvers, scorers and templates.
 
-## 4. Roadmap for benchmarks
+## 4. The second benchmark and the roadmap
 
-S01 uses gsm8k and medqa. Next candidates, in order of how little they need translated and how clean the scorer is: arc (challenge), mmlu (0-shot through the MMMLU layout), humaneval (docstrings only, execution scorer), commonsense_qa, gpqa. Each enters through one file under `configs/benchmark/` and a solver-scorer pair in `translated_benchmark.py` if the type is new (execution scoring is the one pair not yet implemented).
+S01 runs gsm8k in tier 0. MedQA, the original second benchmark, is parked at tier 3 through the series `tiers` block because a thousand rows of letter answers teach the answer format rather than the task, the base sits near chance in the regional languages, and the borrowing policy keeps the medical terms Indonesian or Latin so the medium is barely varied. Phase 2 decides the second benchmark against five criteria, recorded as an amendment in `docs/experiments.md`:
+
+1. Finetuning on 1,000 rows moves the primary base by at least the target detectable difference (`analysis.target_mde_points`) in English, measured with an English-only probe that costs no translation: finetune on the English train subset with the pinned recipe and evaluate on the English test split. A benchmark that does not move in English cannot show a medium effect either.
+2. The scorer is language-agnostic (section 1).
+3. The untuned base is above chance on the Indonesian and Minangkabau 250-item subsets (the floor rule of the methodology, section 4.1).
+4. Items are not culture-bound; a tagged subset of US-specific stems is acceptable, a majority is not.
+5. The answer is produced by generation, so the medium enters the output, or the task carries a reasoning trace before the letter.
+
+Candidates in the order they are probed: medqa as it stands; arc (challenge, letter but with a reasoning trace under the CoT template); a drop numeric subset (generative, numeric scorer); humaneval with translated docstrings (execution scorer; needs the code solver-scorer pair in `translated_benchmark.py`); a math subset under the exact and sympy scorers. Beyond the second benchmark, the next candidates in order of how little they need translated and how clean the scorer is: mmlu (0-shot through the MMMLU layout), commonsense_qa, gpqa. Each enters through one file under `configs/benchmark/` and a solver-scorer pair in `translated_benchmark.py` if the type is new (execution scoring is the one pair not yet implemented).

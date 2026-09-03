@@ -7,7 +7,19 @@ from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
 HERE = pathlib.Path(__file__).parent
-VIEWER = (HERE / "viewer-static.min.js").read_text()
+VIEWER_URL = "https://raw.githubusercontent.com/jgraph/drawio/dev/src/main/webapp/js/viewer-static.min.js"
+VIEWER_PATH = HERE / "viewer-static.min.js"  # vendored on first use, ignored by git
+
+
+def _viewer() -> str:
+    if not VIEWER_PATH.exists():
+        import urllib.request
+
+        urllib.request.urlretrieve(VIEWER_URL, VIEWER_PATH)
+    return VIEWER_PATH.read_text()
+
+
+VIEWER = _viewer()
 
 def render(drawio_path, out_svg, out_png):
     xml = pathlib.Path(drawio_path).read_text()

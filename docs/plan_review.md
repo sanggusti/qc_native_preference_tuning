@@ -100,3 +100,43 @@ The installed Adaption SDK is 0.10.0; the skills and the legacy pipeline were wr
 | Inspect `parse_answers` | requires the literal `ANSWER:` marker | kept in every translated instruction |
 
 The legacy converter (`pipeline/datagenerator/evals_translate/mgsm_convert.py`) remains as the reference for the Adaption calls; the generic stage modules that replace it are listed in [reproducibility.md](reproducibility.md) and tracked in [experiments.md](experiments.md).
+
+## 5. Second review: is this a good research topic?
+
+A critical re-read of the design after it was merged, asking not whether it is sound but whether it is worth running. The verdict and the changes it produced.
+
+### 5.1 Verdict
+
+The study is a good applied and resource topic and a weak topic for the question as originally phrased. Section 1.4 of the methodology already concedes that a "smarter medium" claim is not estimable with one language per structural profile, and no six-language design can make it so. What the study can answer is the practitioner's choice for each target language, translate, anchor to English, pivot through Indonesian, or pool, and it can publish the gated translations and covariate tables that nobody has for these languages. The first version led with the question it retires; this version leads with the question it can answer.
+
+### 5.2 Findings
+
+| Finding | Evidence | Consequence |
+|---|---|---|
+| The exposure ordering (H1 in the first version) is already established | IndoMMLU, NusaX, Belebele, every regional-language benchmark to date | demoted to a descriptive prediction (D1); no budget is ordered around it |
+| The English-anchor advantage has a known direction and an unknown size; the expected size for id, jv and su is about three points, below the pre-registered detectable difference at three replicates | literature note 5.1.3; methodology 10.5 | an equivalence bound of 3 points is pre-registered so a null is a claim; "equivalent" is the stated most likely outcome for those languages |
+| Pooled beats native is established for other families | MathOctopus; equal-budget Alpaca; the 220-run study | kept as replication, bought last (tier 2) |
+| The Indonesian pivot is the one contrast specific to this family that no prior paper answers, and it costs evaluations only because the Indonesian native model exists in tier 0 | literature note 5.1.2 and 5.3; the planner | promoted to tier 0 and to the primary family; H1 in the revised numbering |
+| Floor effects: a 4B LoRA model on Acehnese math, and on option-letter medicine in any regional language, will sit near floor, so two of six languages and one of two benchmarks buy little information at full price | NLLB chrF++ into ace about 37; base near chance on medqa in regional languages | ace parked at tier 2 behind the gate and the floor rule; medqa parked at tier 3 behind a Phase 2 decision; the floor rule extended to min with size as the lever |
+| The managed finetuning service is the treatment: no seed, undisclosed optimizer, undocumented evaluator | SDK audit, section 4 | a transparent LoRA loop with fixed seeds repeats the en and id cells (sft_check, H6); a deviation makes every managed result conditional on the platform |
+| MedQA teaches the answer format, not the medium: a thousand letter-answer rows, a base near chance in regional languages, and a borrowing policy that keeps the terms Indonesian or Latin | methodology 4.3 | second benchmark decided in Phase 2 against the criteria of benchmarks.md section 4, with an English-only finetuning probe that costs no translation |
+| Cost against information: sixty finetunes, over two hundred evaluations, roughly fifteen thousand translation rows and about three thousand human annotations, mostly to confirm expected orderings | experiments.md ledger | tiers reordered so the novel contrasts are bought first; the minimum publishable unit is 15 finetunes and 85 evaluations |
+| The two lowest-exposure languages are unverifiable where it matters most (no quality-estimation coverage, possibly no reviewers) | literature note 5.6 | stated as a limitation; the causal study is effectively en, id, jv, su and min |
+
+### 5.3 Changes made
+
+| Change | Where |
+|---|---|
+| Question reframed as the practitioner choice; the "simpler medium" premise kept as a measured side table | research.md; methodology 1.1; README.md; docs/README.md |
+| Hypotheses reordered by novelty: pivot, anchor, pooling; then translator loss, exposure invariance, platform independence; exposure ordering and similarity demoted to descriptive | methodology 2 |
+| Equivalence verdicts (TOST, 3 points) on every primary contrast; the bound is a series constant | methodology 2, 10.3, 10.5; series file `analysis` |
+| Primary family is Delta_en plus Delta_id, Holm per benchmark | methodology 10.3 |
+| Tiers compose over condition, benchmark and language through the series `tiers` block; indonesian_anchor to tier 0, ace to tier 2, medqa to tier 3 | series file; `src/utils/registry.py`; `pipeline/plan.py` |
+| Training backend as a condition key; the `sft` backend with fixed seeds, the `-sft` model slug, the `sft_check` condition in tier 1 | series file; registry; planner; `configs/training/sft.yaml`; methodology 7 |
+| Floor rule on id and min with size as the lever; ceiling on en | methodology 4.1; series file `analysis.floor` and `analysis.ceiling` |
+| Phases reordered: gsm8k tier 0 first (H1, H2), then the platform and contrast-base checks, then Acehnese and pooling, then the second benchmark | methodology 11; research.md 7; experiments.md |
+| Second-benchmark criteria and candidates | benchmarks.md 4 |
+
+### 5.4 What the second review did not change
+
+The item pairing, the pinned recipe, the gate, the round-trip bound, the contamination split, the replicate rule and the pre-registration discipline all stand; they are stronger than most papers in this area. The registry-and-planner structure absorbed every change above without a new stage module: parking a benchmark or a language is one line in the series file.
