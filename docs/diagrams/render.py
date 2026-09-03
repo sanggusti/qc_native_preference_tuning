@@ -1,6 +1,9 @@
 """Render a .drawio file to SVG and PNG with the draw.io viewer in headless Chromium."""
-import json, sys, pathlib
+import json
+import pathlib
+import sys
 from html import escape as html_escape
+
 from playwright.sync_api import sync_playwright
 
 HERE = pathlib.Path(__file__).parent

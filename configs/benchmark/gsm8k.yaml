@@ -33,7 +33,7 @@ translate:
     Translate the question and the worked solution into {language}. Preserve every number,
     arithmetic expression, currency symbol and the final answer exactly as written, using
     English number formatting. Keep the same reasoning steps in the same order. Do not add
-    explanations.
+    explanations. {register_instruction}
   prompt_template_key: mgsm_cot_instruction   # translated once per language; the final line keeps "Answer:"
   variants:                  # eval-only derived splits, see docs/methodology.md
     rt: back-translation of the {language} test split into English by the same translator

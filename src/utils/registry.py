@@ -18,7 +18,7 @@ from omegaconf import DictConfig, OmegaConf
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 
-LANGUAGE_REQUIRED = ("code", "iso_639_3", "name", "flores_code", "script", "resource_tier")
+LANGUAGE_REQUIRED = ("code", "iso_639_3", "name", "script", "resource_tier", "register_instruction")
 BENCHMARK_REQUIRED = ("name", "domain", "scorer", "eval_source", "train_source", "translate")
 SERIES_REQUIRED = (
     "series",

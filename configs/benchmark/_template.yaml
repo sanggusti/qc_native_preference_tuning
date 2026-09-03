@@ -26,5 +26,5 @@ train_source:              # English training items (become the {language} train
 translate:
   fields: []               # columns rewritten by the translator
   preserve: []             # things the blueprint must keep verbatim (numbers, option letters, code)
-  blueprint: null          # domain-specific translation instruction; {language} is substituted
+  blueprint: null          # domain-specific translation instruction; {language} and {register_instruction} are substituted
   prompt_template_key: null  # instruction template that must also be translated once per language

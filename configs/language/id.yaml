@@ -8,5 +8,7 @@ family: Austronesian / Malayo-Polynesian / Malayic
 resource_tier: medium
 translation_register: formal
 register_notes: Standard written Indonesian (ragam baku) as used in textbooks and exams.
+register_instruction: >-
+  Write in standard written Indonesian (ragam baku), the register of textbooks and examinations; do not use colloquial Jakartan forms.
 nllb_supported: true
 xlmr_covered: true

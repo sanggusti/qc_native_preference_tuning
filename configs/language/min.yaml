@@ -10,7 +10,11 @@ translation_register: standard
 register_notes: >-
   Minangkabau is lexically close to Indonesian and Malay, so translation quality gates
   must check that outputs are Minangkabau rather than lightly modified Indonesian
-  (language identification plus a distinctiveness check). Use the Agam-Tanah Datar
-  variety as the written standard, matching FLORES-200 and NusaX.
+  (language identification plus a distinctiveness check). The written standard is the
+  Agam-Tanah Datar variety described by Koto and Koto (2020); whether the FLORES-200 and
+  NusaX references use the same variety and orthography is audited in Phase 0 before
+  the calibration thresholds are set.
+register_instruction: >-
+  Write in standard Minangkabau (the Agam-Tanah Datar variety used in published Minangkabau text); do not leave Indonesian sentences or phrases untranslated where a Minangkabau form exists.
 nllb_supported: true
 xlmr_covered: false

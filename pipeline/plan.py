@@ -108,13 +108,15 @@ def render_commands(series: DictConfig, cells: list[dict], stage: str) -> str:
             )
     if stage in ("all", "eval"):
         lines.append("# eval: one Inspect run per cell")
+        provider = series.naming.get("model_provider", "hf")
         for cell in cells:
-            model = cell["model"] if cell["condition"] == "base" else f"hf/{cell['model']}"
+            model = f"{provider}/{cell['model']}"  # same harness for base and finetuned cells
             variant = f" -T variant={cell['eval_variant']}" if cell["eval_variant"] else ""
             lines.append(
                 "uv run inspect eval src/evals/tasks/translated_benchmark.py "
                 f"--model {model} -T benchmark={cell['benchmark']} "
                 f"-T language={cell['eval_language']}{variant} "
+                f"-T dataset_repo={cell['eval_dataset']} "
                 f"--temperature {series.generation.temperature} "
                 f"--max-tokens {series.generation.max_tokens} "
                 f"--metadata condition={cell['condition']} "

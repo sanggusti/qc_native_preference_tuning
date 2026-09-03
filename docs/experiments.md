@@ -15,11 +15,11 @@ Every series, every paid run and every artifact is recorded here. The planner ou
 
 | Quantity | Tier 0 | Full series |
 |---|---|---|
-| Datasets (translated and derived) | 22 | 24 |
+| Datasets (translated and derived) | 28 | 30 |
 | Finetune runs | 36 | 60 |
-| Evaluation runs | 138 | 231 |
+| Evaluation runs | 162 | 255 |
 
-Base models (provisional until Phase 2): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min, ace. Benchmarks: gsm8k, medqa. Replicates: 3 (confirmed by the Phase 4 pilot).
+Base models (provisional until Phase 2): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min, ace. Benchmarks: gsm8k, medqa. Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
 
 ## 3. Ledger
 
@@ -29,20 +29,22 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 |---|---|---|---|---|---|
 | 0 | live model catalogue (`client.autoscientist.list_models()`) | | | | |
 | 0 | fertility, characters per item, bits per byte per language and base | | | | |
-| 0 | NusaX id-min identical-token share (leakage threshold) | | | | |
+| 0 | NusaX identical-content-token share and chrF++ of each regional language against Indonesian (leakage threshold, H3 covariate) | | | | |
+| 0 | register and orthography audit of the FLORES-200 references (jv, min, ace) | | | | |
 | 1 | `language_expansion` probe with `estimate=True` per code | | | | |
-| 1 | FLORES-100 probe per language (Adaption and NLLB-200 chrF++) | about 600 rows | | | |
-| 1 | 50-row gsm8k probe per language with the full quality columns | about 300 rows | | | |
+| 1 | FLORES-200 devtest calibration per language (Adaption and NLLB-200 chrF++, QE diagnostics) | about 5,000 rows | | | |
+| 1 | 50-row gsm8k probe per language with the full quality columns | 250 rows | | | |
 | 1 | admitted languages and deferred languages with scores | | | | |
-| 2 | 250-item base evals per candidate base and language | | | | |
+| 2 | 250-item test subset translation per language and benchmark | about 2,500 rows | | | |
+| 2 | 250-item base evals per candidate base and language; Belebele id, jv, su probes | | | | |
 | 2 | pinned primary and contrast base | | | | |
-| 2 | full-split base evals (the `base` cells) | | | | |
 | 3 | gsm8k test split translation and gate per language | 1,319 rows x 5 | | | |
 | 3 | gsm8k train split translation and gate per language | 1,000 rows x 5 | | | |
-| 3 | derived splits `-rt`, `-pro1`; human-verified subsets | | | | |
-| 4 | tier 0 gsm8k finetunes (primary base) | 6 x 3 | | | |
-| 4 | variance pilot; replicate policy | | | | |
-| 4 | tier 0 gsm8k evals | | | | |
+| 3 | derived splits `-rt` (NLLB-200 back-translation), `-pro1`; human-verified subsets | | | | |
+| 3 | full-split base evals on the original and `-pro1` splits (the base and base_pro1 cells) | | | | |
+| 4 | tier 0 gsm8k finetunes (primary base) | 6 languages x 3 replicates = 18 | | | |
+| 4 | replicate rule from the pooled s_r; extra replicates if required | | | | |
+| 4 | tier 0 gsm8k evals (native, english_anchor, regression, round_trip, native_pro1) | | | | |
 | 5 | medqa translation, finetunes, evals | | | | |
 | 6 | tier 1 contrast-base finetunes and evals | 6 x 3 | | | |
 | 7 | tier 2 pooled finetunes and anchor evals | 2 x 3 | | | |

@@ -9,7 +9,7 @@ Verified by executing the installed code:
 - Letter-choice scoring (`multiple_choice` solver, `choice` scorer) extracts the answer with a case-insensitive regex on the literal `ANSWER:` marker. `Answer: b.` and `answer: B` are accepted; `JAWABAN: B` returns nothing. Translated instructions keep the marker.
 - Numeric matching (`match(numeric=True)`) strips currency symbols and thousands separators written with commas, and reads a period as the decimal point: `Jawaban: 1.500` against target 1500 scores wrong (parsed as 1.5), `2,5` against 2.5 scores wrong (parsed as 25), and `Rp18` yields no number. Translated items and translated instructions keep English number formatting, and the gate checks it.
 
-Both constraints are shared by every language, so they do not favour one language over another; they do mean that the marker itself is an English token in every prompt, which the methodology lists as a residual threat.
+Both constraints are shared by every language, so they do not favour one language over another; they do mean that the marker itself is an English token in every prompt, which the methodology lists as a residual threat. Because an untuned model may still answer in the Indonesian numeral convention, the task scores numeric benchmarks twice: with the strict scorer and with `numeric_match_locale`, which rewrites `1.500` to 1500 against integer targets and `2,5` to 2.5 against fractional targets before matching. The locale-tolerant score is the primary metric; the strict score is kept for comparability with published numbers.
 
 ## 2. Inventory
 
@@ -57,7 +57,7 @@ Legend for the scorer column: agnostic (numeric, letter or execution), English-d
 
 - `inspect eval-set --log-dir logs/{series}/{benchmark}/{language}` retries and resumes completed samples; one log directory per cell.
 - `-T name=value` sets task arguments; resolved arguments are stored in the log and appear as `task_arg_*` columns in `evals_df`.
-- `--model-role grader=...` binds a fixed judge for any secondary model-graded metric; scorers fetch it with `get_model(role="grader")` and never fall back to the model under test.
+- `--model-role grader=...` binds a fixed judge for any secondary model-graded metric; scorers must fetch it with `get_model(role="grader", required=True)`, because an unbound role otherwise falls back to the model under test.
 - `stderr(cluster="...")` and `ci(method="bootstrap", cluster="...")` give clustered errors over a metadata key; the task clusters by `source_id`.
 - `--temperature 0`, `--max-tokens`, `--seed` (honoured by the `hf` and `vllm` providers), `--epochs`, `--limit`, `--sample-id`.
 - Providers for finetuned checkpoints: `hf/<repo>` in process, `vllm/<repo>` against a local server, or `openai-api/<service>/<model>` for a hosted endpoint; the harness is identical across conditions.

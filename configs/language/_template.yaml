@@ -12,5 +12,6 @@ family: null            # genealogical placement, for interpretation only
 resource_tier: null     # high | medium | low | very_low (documented in docs/methodology.md)
 translation_register: null   # fixed register for all translations (e.g. ngoko for Javanese)
 register_notes: null    # why that register; alternatives that exist in the language
+register_instruction: null   # sentence appended to every translation blueprint through {register_instruction}
 nllb_supported: false   # NLLB-200 can act as an independent second translator for QE
 xlmr_covered: false     # language is in XLM-R's 100 languages (COMET/CometKiwi validity)

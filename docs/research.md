@@ -2,7 +2,7 @@
 
 ## Summary
 
-Large language models are finetuned and evaluated almost always in English, and the literature on multilingual reasoning reports that models reason at least as well in English as in the language of the question, with the advantage growing as the language gets less represented in pretraining. This project asks the converse question for a family of related, under-resourced languages: if the same task data are translated into Indonesian, Javanese, Sundanese, Minangkabau and Acehnese, the same base model is finetuned on each translation with the same recipe, and each model is evaluated on the same items in its own language, does accuracy depend on the language, and which language is the best medium?
+Large language models are finetuned and evaluated almost always in English, and on reasoning benchmarks they are usually at least as accurate reasoning in English as in the language of the question; the advantage is largest for mid-resource languages and shrinks again where the model cannot read the input at all. This project asks the converse question for a family of related, under-resourced languages: if the same task data are translated into Indonesian, Javanese, Sundanese, Minangkabau and Acehnese, the same base model is finetuned on each translation with the same recipe, and each model is evaluated on the same items in its own language, does accuracy depend on the language, and which language is the best medium?
 
 The study is designed so that the answer can be read net of the three factors that the literature says drive cross-language gaps: the base model's pretraining exposure to each language, the competence of the translator in each language, and the tokenizer's fertility on each language. Those factors are measured per language and per item, held fixed where the tooling allows, and separated from the language where the design allows (a second base model with a different exposure profile, a round-trip translation bound, a digit re-instantiation split for contamination). The result is a set of within-language causal contrasts (gain from native tuning, anchor advantage, regression, pooling advantage), one descriptive cross-language comparison with its covariates attached, and a published set of gated, item-aligned benchmark translations for languages that have none.
 
@@ -18,7 +18,7 @@ The user-level framing, whether one of these languages is a "smarter" medium and
 
 ## 2. Why this is worth doing
 
-- No published study runs this crossed design for Indonesian regional languages. The closest controlled comparisons vary the language of tuning data for European and major Asian languages, hold much less fixed, and rarely measure translation quality or exposure as covariates. The gap matrix in the literature note shows that no language in the set other than Indonesian has a native evaluation set for math, medicine, code or science; the translated, gated sets this study publishes are a contribution on their own.
+- To our knowledge, no published study runs this crossed design for Indonesian regional languages. The closest controlled comparisons vary the language of tuning data for European and major Asian languages; none covers Indonesian regional languages, none measures translation quality and exposure per item, and none carries a translator-loss bound. Section 5.5 of the literature note shows that no language in the set other than Indonesian has a native evaluation set for medicine, code or science, and that for math only a 500-item MATH-style set exists for Javanese, Sundanese and Buginese (MATH-IDN); the translated, gated sets this study publishes are a contribution on their own.
 - The literature predicts the ordering of A(L) but not its size once data are matched, and it predicts that most of the gap is exposure, tokenization and translation rather than the language. Recent controlled work finds the native penalty small (about three points) when native data are matched on a strong base, and finds that pooled multilingual tuning beats monolingual tuning even on the target's own test set. Whether either holds for Latin-script Austronesian languages with near-zero exposure is unknown.
 - Practical value: teams building Indonesian and regional-language models need to know whether to translate their finetuning data, anchor to English, pivot through Indonesian, or pool. The within-language contrasts answer that directly.
 
@@ -30,9 +30,9 @@ Stated with the observation that would count against each in the methodology (se
 - H2: English-anchored finetuning is at least as accurate as native finetuning on math for every regional language, and the gap is smaller on medical multiple choice.
 - H3: among regional languages, gains track lexical similarity to Indonesian.
 - H4: one model finetuned on the pooled languages is at least as accurate as the native model in every language at equal total rows.
-- H5: the round-trip bound is positive and grows with lower exposure, and the native gap is at least as large.
-- H6: the language ordering is invariant to a size-matched base model with a different exposure profile; if not, the exposure account is preferred.
-- H0: the premise that Indonesian is a simpler medium predicts lower token cost and no deficit relative to English after adjusting for exposure; current tokenizers are expected to contradict the first part.
+- H5: the round-trip translator loss is positive for the lowest-exposure languages; the part of the native gap above it is not attributable to the translator.
+- H6: the language ordering is invariant to a size-matched base model with a different exposure profile; if not, the ordering is model-specific and the covariate table says which component (corpus, tokenizer, post-training) moves with it.
+- Premise P: the intuition that Indonesian is a simpler medium is reported as measurements (tokens, bytes and characters per item, bits per byte, and Indonesian's position relative to its exposure), not tested as a claim about the medium; under current tokenizers standard written Indonesian is expected to cost more tokens per item than English.
 
 ## 4. Design in brief
 
@@ -45,16 +45,16 @@ Stated with the observation that would count against each in the methodology (se
 | Languages | en (reference), id, jv, su, min, ace; more through one registry file each |
 | Benchmarks | gsm8k (GSM8K test, 1,319 items, MGSM subset tagged) and medqa (MedQA test, 1,273 items); more through one registry file each, restricted to language-agnostic scorers |
 | Training data | fixed 1,000-item subset of each benchmark's training source, identical ids in every language |
-| Translation | Adaption Adaptive Data with a fixed blueprint and register per language; a five-step gate with FLORES-200 and NusaX calibration, per-item quality columns, a second translator and a human error-span review |
+| Translation | Adaption Adaptive Data with a fixed blueprint and register sentence per language; a six-step gate with FLORES-200 and NusaX calibration, per-item quality columns, NLLB-200 as the independent second translator and back-translator, and a human error-span review |
 | Finetuning | Adaption AutoScientist with the optimizer pinned: one iteration, no early stop, no augmentation, hyperparameters from one recommendation call copied into every run, raw upload of the published rows; three replicates per finetuned cell |
 | Evaluation | one parameterized Inspect task, numeric match or option letter, temperature 0, generous token cap, output-language fidelity and token counts logged |
-| Conditions | tier 0: base, native, english_anchor, regression, round_trip; tier 1: native and english_anchor on a contrast base model; tier 2: indonesian_anchor, pooled |
+| Conditions | tier 0: base, native, english_anchor, regression, round_trip, and the base and native cells on the digit re-instantiated split; tier 1: native and english_anchor on a contrast base model; tier 2: indonesian_anchor, pooled |
 | Analysis | paired item bootstrap and a mixed-effects logistic model with item and run random effects; Holm on the primary family; identification analyses for the base-model factor and item-level covariates |
-| Size | tier 0 is 36 finetunes and 138 evaluation runs; the full series is 60 and 231 |
+| Size | tier 0 is 36 finetunes and 162 evaluation runs; the full series is 60 and 255 |
 
 ## 5. Contributions
 
-1. The first item-paired, pipeline-controlled comparison of finetuning language across six languages including four Indonesian regional languages, with exposure, fertility and translation quality measured rather than assumed.
+1. To our knowledge, the first item-paired, pipeline-controlled comparison of finetuning language across six languages including four Indonesian regional languages, with exposure, fertility and translation quality measured rather than assumed.
 2. Gated, item-aligned translations of GSM8K and MedQA into id, jv, su, min and ace, published with their gate scores, human-verified subsets and excluded-item lists, plus round-trip and NLLB-200 comparison splits.
 3. Per-language covariate tables (tokenizer fertility and bits per byte under current base models) for jv, su, min and ace, which no publication reports.
 4. Two eval-only controls that are reusable elsewhere: the round-trip bound that charges loss to the translator without the model ever seeing the language, and a digit re-instantiation split that tests English contamination while keeping the item pairing.
@@ -70,7 +70,7 @@ English-anchored reasoning (MGSM's English chain of thought, cross-lingual-thoug
 
 ![Lexicon overlap of Indonesian regional languages with Indonesian and English](research/figures/nusawrites_lexicon_overlap.png)
 
-*Figure 3. Lexicon overlap with Indonesian (x) and English (y) for Indonesian regional languages across Wikipedia, NusaParagraph and NusaTranslation. Minangkabau's closeness to Indonesian is why the design carries an Indonesian-leakage check. Source: Cahyawijaya et al., 2023, arXiv:2309.10661, repository visualization.*
+*Figure 3. Lexicon overlap with Indonesian (x) and English (y) for Indonesian regional languages across Wikipedia, NusaParagraph and NusaTranslation. Overlap with Indonesian is why the design measures lexical similarity per language in Phase 0 and carries an Indonesian-leakage check for every regional language. Source: Cahyawijaya et al., 2023, arXiv:2309.10661, repository visualization.*
 
 What none of the prior work does is hold base model, items, translator and finetuning recipe fixed across a set of closely related low-resource languages while measuring the confounds. The novelty is the design, not a new method.
 
@@ -79,16 +79,18 @@ What none of the prior work does is hold base model, items, translator and finet
 | Phase | Spend | Output | Decides |
 |---|---|---|---|
 | 0 | none | covariate tables, premise numbers, live model catalogue | candidate base shortlist |
-| 1 | about 1,000 translation rows | FLORES-100 and 50-row probes, gate scores | which languages are admitted |
-| 2 | GPU hours | base accuracy in every admitted language | primary and contrast base models |
-| 3 | full gsm8k translation | gated test and train splits, derived splits, verified subsets | languages that stay admitted |
-| 4 | 36 one-iteration finetunes plus a variance pilot | tier 0 on gsm8k, the minimum publishable unit | replicate policy |
+| 1 | about 5,300 translation rows | FLORES-200 devtest calibration and 50-row probes, gate scores | which languages are admitted |
+| 2 | about 2,500 translation rows plus GPU hours | 250-item test subsets, base accuracy in every admitted language, Belebele probes | primary and contrast base models |
+| 3 | full gsm8k translation | gated test and train splits, derived splits, verified subsets, base cells | languages that stay admitted |
+| 4 | 18 one-iteration finetunes on gsm8k | tier 0 on gsm8k, the minimum publishable unit; replicate variance | replicate count |
 | 5 | medqa translation and finetunes | task-type replication | |
 | 6 | 18 finetunes on the contrast base | exposure identification | whether the ordering is model-specific |
 | 7 | pooled models and extra evals; series S02 to S04 | mechanism arms; adaptive optimizer; preference tuning; more benchmarks and languages | |
 
 Series S02 lets AutoScientist optimize (three iterations) on the tier 0 cells to ask whether the platform's optimizer changes the ranking. Series S03 is preference tuning with cross-lingual consistency pairs, the original direction of this repository. Series S04 adds benchmarks (GSM8K variants, MMLU through its multilingual layout, HumanEval-XL) and the second language wave (Balinese, Banjar, Buginese, Madurese).
 
-## 8. What the study cannot claim
+## 8. Limitations, ethics and what the study cannot claim
 
-With one language per structural profile, the study cannot attribute a residual gap to the language's structure. It can say which medium is best for this base model and translator, how much of the gap is translator loss, whether the ordering survives a change of base model, and how much of it item-level translation quality and token counts explain. The report states this in one paragraph next to the results.
+With one language per structural profile, the study cannot attribute a residual gap to the language's structure. It can say which medium is best for this base model and translator, how much of the gap is at most translator loss, whether the ordering survives a change of base model, and how much of it item-level translation quality and token counts explain. Every S01 effect is an effect under LoRA at the pinned rank; the optional full-finetuning pair bounds that conditionality. The report states this in one paragraph next to the results.
+
+Ethics and data statement. The medical datasets are machine translations of exam items and the models finetuned on them are research artifacts; both carry a clinical-use disclaimer on their cards. Annotators are native speakers recruited for the error-span review, paid at a stated rate, credited as they prefer, and consent to the release of their annotations with the guideline. Publishing translated test items creates future contamination of these benchmarks; every test split embeds a canary string and the cards ask downstream users not to train on them. The translator is a managed service whose underlying model is not disclosed; run ids, dates and the blueprint are recorded so the translation step is reproducible as a procedure even if the model behind it changes. Source licenses (GSM8K, MedQA, FLORES-200, NusaX, NLLB outputs under CC-BY-NC) are carried into every derived artifact.

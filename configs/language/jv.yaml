@@ -11,5 +11,7 @@ register_notes: >-
   Javanese has speech levels (ngoko, madya, krama). Ngoko is the most common written
   register in web text and in existing NLP corpora (NusaX, NusaWrites); krama would be
   a separate condition, not a drop-in substitute. Keep one register for the whole series.
+register_instruction: >-
+  Write in ngoko Javanese, the everyday register, consistently; do not switch to madya or krama forms, and do not substitute Indonesian words where a ngoko word exists.
 nllb_supported: true
 xlmr_covered: true

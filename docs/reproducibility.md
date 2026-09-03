@@ -16,12 +16,13 @@ Every value that could differ between two experiments lives in a YAML file under
 | `iso_639_3` | ISO 639-3 code (`jav`) |
 | `name` | English name, substituted verbatim into translation blueprints |
 | `native_name` | endonym |
-| `flores_code` | FLORES-200 and NLLB-200 code (`jav_Latn`); null if the language is not covered, in which case NusaX is the calibration reference |
+| `flores_code` | FLORES-200 and NLLB-200 code (`jav_Latn`); null if the language is not covered (Madurese), in which case NusaX is the calibration reference |
 | `script` | script used for every dataset in the study; Latin throughout |
 | `family` | genealogical placement, for interpretation |
 | `resource_tier` | high, medium, low, very_low |
 | `translation_register` | the register pinned for all translations (`ngoko`, `loma`, `formal`, `standard`) |
 | `register_notes` | why that register, and which alternatives exist |
+| `register_instruction` | the sentence substituted into every translation blueprint through `{register_instruction}` |
 | `nllb_supported` | NLLB-200 can act as the second translator |
 | `xlmr_covered` | the language is in XLM-R's pretraining set, so encoder-based quality estimation is inside coverage |
 
@@ -37,7 +38,7 @@ Template: `configs/language/_template.yaml`. Entries today: en, id, jv, su, min,
 | `eval_source`, `train_source` | Hub repository, config, split and field mapping of the English sources; `min_rows` for the training split; optional `subsets` to tag |
 | `translate.fields` | columns rewritten by the translator |
 | `translate.preserve` | what the blueprint must keep verbatim |
-| `translate.blueprint` | the translation instruction with `{language}` substituted |
+| `translate.blueprint` | the translation instruction with `{language}` and `{register_instruction}` substituted (a registry test fails if either placeholder is missing) |
 | `translate.prompt_template_key` | the instruction template that is translated once per language |
 | `translate.variants` | derived eval-only splits (`rt`, `nllb`, `pro1`) |
 
@@ -62,7 +63,7 @@ uv run python -m pipeline.plan series=s02_adaptive      # another series file
 
 `pipeline/plan.py` loads the series through `src/utils/registry.py`, validates every referenced language, benchmark, base role and condition, expands the cells, de-duplicates cells that coincide (the English anchor evaluated in English is the native English cell), and prints counts per tier, per condition, and the command for every dataset, finetune and evaluation. Nothing in the planner submits work. The printed plan is pasted into `docs/experiments.md` before the first paid run of a series.
 
-For series S01 the planner reports 24 datasets (12 translated train and test repositories, 10 derived round-trip splits, 2 pooled training sets), 60 finetunes and 231 evaluation runs, of which tier 0 is 36 finetunes and 138 evaluations.
+For series S01 the planner reports 30 datasets (10 translated train and test repositories, 2 English source repositories, 10 round-trip splits, 6 digit re-instantiated splits, 2 pooled training sets), 60 finetunes and 255 evaluation runs, of which tier 0 is 36 finetunes and 162 evaluations.
 
 ## 4. Naming
 
@@ -80,7 +81,7 @@ Base slugs are declared in the series file (`naming.base_slugs`). Names are prod
 
 ## 5. Stage commands
 
-The planner prints one command per unit of work. The eval command is runnable today; the datagen and finetune modules are on the roadmap (section 8) and the printed commands are their specification.
+The planner prints one command per unit of work. The eval command is runnable today for any split whose Hub repository exists; the datagen and finetune modules are on the roadmap (section 8) and the printed commands are their specification.
 
 ```bash
 # datagen (planned module): one Adaption translation run per benchmark x language
@@ -96,11 +97,16 @@ uv run python -m pipeline.training.autoscientist_finetune series=s01_language_me
     benchmark=gsm8k base=primary language=jv replicate=1 \
     hub_model_id=sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1
 
-# eval (runnable): one Inspect run per cell
+# eval (runnable): one Inspect run per cell; base cells use the same hf/ provider as finetuned cells
 uv run inspect eval src/evals/tasks/translated_benchmark.py --model hf/sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1 \
-    -T benchmark=gsm8k -T language=jv --temperature 0.0 --max-tokens 2048 \
+    -T benchmark=gsm8k -T language=jv -T dataset_repo=sanggusti/gsm8k-jv \
+    --temperature 0.0 --max-tokens 2048 \
     --metadata condition=native --metadata train_language=jv --metadata base=primary \
     --metadata replicate=1 --metadata series=s01_language_medium
+
+# derived split (round trip): the planner adds -T variant and the suffixed repo
+uv run inspect eval src/evals/tasks/translated_benchmark.py --model hf/sanggusti/gsm8k-en-s01_language_medium-gemma3-4b-r1 \
+    -T benchmark=gsm8k -T language=jv -T variant=rt -T dataset_repo=sanggusti/gsm8k-jv-rt ...
 
 # smoke first, always
 uv run inspect eval src/evals/tasks/translated_benchmark.py --model ... -T benchmark=gsm8k -T language=jv --limit 20
@@ -110,7 +116,7 @@ Sweeps: a stage module that takes Hydra overrides can be swept with multirun, fo
 
 ## 6. The evaluation task
 
-`src/evals/tasks/translated_benchmark.py` is one parameterized task for every benchmark and language. It reads the benchmark registry to choose the solver and scorer (numeric match with `generate`, or `multiple_choice` with the choice scorer), loads the Hub repository named by the series template (or a local JSONL for smoke tests and unit tests), takes the translated instruction template from the dataset, clusters the standard error by `source_id`, and records benchmark, language and variant in the log metadata. Model roles for any secondary judge are bound with `--model-role grader=...`. Tests in `tests/test_translated_benchmark.py` run without network on fixtures under `tests/fixtures/`.
+`src/evals/tasks/translated_benchmark.py` is one parameterized task for every benchmark and language. It reads the benchmark registry to choose the solver and scorers (for numeric benchmarks `generate` with Inspect's strict numeric match and a locale-tolerant numeric match that rewrites Indonesian-style numerals first; for multiple choice `multiple_choice` with the choice scorer), loads the Hub repository the planner resolved from the series naming (`-T dataset_repo`, with `-T variant` appended for derived splits; a template is the fallback, and a local JSONL serves smoke tests and unit tests), takes the translated instruction template from the dataset, clusters the standard error by `source_id`, and records benchmark, language, variant and dataset in the log metadata. Confidence intervals for the analysis are computed from the exported per-sample scores in `src/analysis/`, not inside Inspect. Model roles for any secondary judge are bound with `--model-role grader=...` and fetched with `required=True`. Tests in `tests/test_translated_benchmark.py` run without network on fixtures under `tests/fixtures/`.
 
 Canonical dataset schema consumed by the task: `id` (equal to `source_id`), `question`, `choices` (multiple choice only), `target`, `instruction`, `instruction_en`, `question_en`, `answer_en`, `language`, `register`, `blueprint_hash`, `translator_version`, and the per-item quality columns listed in `docs/methodology.md` section 5.4.
 
@@ -148,7 +154,8 @@ Remaining stage modules, in the order the phases need them (tracked in `docs/exp
 | `pipeline/covariates/fertility.py`, `bits_per_byte.py` | per-language, per-item token counts and base-model bits per byte on FLORES-200 devtest (runs on Lightning or Modal) |
 | `pipeline/datagenerator/translate_benchmark.py` | registry-driven translation: fixed item subset, blueprint route with pinned settings, canonical schema, quality columns, gate, Hub push, raw-mode upload |
 | `pipeline/datagenerator/gate.py` | structural checks, GlotLID, leakage, register, chrF++ against references, thresholds, report into the dataset card |
-| `pipeline/datagenerator/derive_split.py` | round-trip, NLLB-200 (on Modal) and digit re-instantiation splits |
+| `pipeline/modal_runner/nllb_translate.py` | NLLB-200 3.3B on Modal: FLORES calibration translations, second-opinion translations, back-translations for the quality columns and the round-trip split (Phase 1) |
+| `pipeline/datagenerator/derive_split.py` | round-trip, NLLB-200 and digit re-instantiation splits, calling the NLLB job |
 | `pipeline/datagenerator/pool_benchmark.py` | the pooled training set at equal total rows |
 | `pipeline/training/autoscientist_finetune.py` | pinned create call, `best_hyperparams` check, artifact download, Hub push, wandb logging |
 | `pipeline/evals/serve_modal.py` | one vLLM server per checkpoint, Inspect through the OpenAI-compatible provider, smoke wrapper |

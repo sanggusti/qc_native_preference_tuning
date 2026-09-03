@@ -106,7 +106,10 @@ def pipeline_flow():
     tr = d.box("Adaption Adaptive Data<br>translation blueprint + fixed register", X + 500, 220, 240, 60, "data")
     gate = d.box("Quality gate<br>LID, preservation checks, NLLB agreement,<br>QE, human ESA sample", X + 770, 210, 260, 80, "gate")
     hf = d.box("HF dataset sanggusti/{benchmark}-{language}<br>splits train and test, provenance columns", X + 1060, 220, 260, 60, "data")
-    d.edge(src, sel); d.edge(sel, tr); d.edge(tr, gate); d.edge(gate, hf, "pass")
+    d.edge(src, sel)
+    d.edge(sel, tr)
+    d.edge(tr, gate)
+    d.edge(gate, hf, "pass")
     d.note("fail: regenerate once, then NLLB-200 retranslation,<br>then drop the item id in every language", X + 770, 300, 320, 50)
 
     d.lane("Stage 1b: covariates (per language, before any paid run)", X, 400, 1340, 110, "track")
@@ -116,14 +119,18 @@ def pipeline_flow():
     base = d.box("Untuned base evals<br>B(L) in every language", X + 870, 440, 220, 50, "track")
     gonogo = d.box("Go / no-go per language", X + 1120, 440, 200, 50, "gate")
     d.edge(base, gonogo)
-    d.edge(fert, gonogo, exit=(1, 0.5), entry=(0, 0.5)); d.edge(bpb, gonogo, exit=(1, 0.5), entry=(0, 0.5)); d.edge(tq, gonogo, exit=(1, 0.5), entry=(0, 0.5))
+    d.edge(fert, gonogo, exit=(1, 0.5), entry=(0, 0.5))
+    d.edge(bpb, gonogo, exit=(1, 0.5), entry=(0, 0.5))
+    d.edge(tq, gonogo, exit=(1, 0.5), entry=(0, 0.5))
 
     d.lane("Stage 2: finetune (per benchmark x base x train language x replicate)", X, 540, 1340, 150, "train")
     raw = d.box("Upload train split as raw rows<br>processing_mode=raw, explicit column mapping", X + 20, 590, 300, 60, "train")
     auto = d.box("Adaption AutoScientist<br>pinned model and hyperparameters,<br>augmentation 0, 3 replicates", X + 360, 580, 280, 80, "train")
     ckpt = d.box("Checkpoint on HF Hub<br>sanggusti/{benchmark}-{train}-{series}-{base}-r{n}", X + 680, 590, 320, 60, "train")
     wb1 = d.box("wandb run<br>resolved config, best_hyperparams, tokens", X + 1040, 590, 280, 60, "track")
-    d.edge(raw, auto); d.edge(auto, ckpt); d.edge(ckpt, wb1, "", DASH)
+    d.edge(raw, auto)
+    d.edge(auto, ckpt)
+    d.edge(ckpt, wb1, "", DASH)
 
     d.lane("Stage 3: evaluate and analyze (per cell)", X, 720, 1340, 200, "eval")
     task = d.box("Inspect task translated_benchmark<br>-T benchmark -T language", X + 20, 770, 260, 60, "eval")
@@ -131,7 +138,10 @@ def pipeline_flow():
     logs = d.box("Eval logs<br>source_id, language, condition, replicate,<br>output tokens, output-language id", X + 600, 760, 280, 80, "eval")
     ana = d.box("Analysis<br>paired item bootstrap, GLMM,<br>Holm on the primary family", X + 910, 760, 240, 80, "outcome")
     rep = d.box("Report + docs/experiments.md", X + 1180, 770, 150, 60, "outcome")
-    d.edge(task, scorer); d.edge(scorer, logs); d.edge(logs, ana); d.edge(ana, rep)
+    d.edge(task, scorer)
+    d.edge(scorer, logs)
+    d.edge(logs, ana)
+    d.edge(ana, rep)
     d.note("Model under eval: base model (condition base) or hf/{checkpoint}; temperature 0, generous max tokens", X + 20, 850, 600, 40)
 
     # cross-lane edges routed through the left margin at distinct x positions
@@ -157,6 +167,7 @@ def design():
         ("tier 0  english_anchor: finetuned in en", "A_en(L)", ["all"], "eval"),
         ("tier 0  regression: finetuned in L, scored in en", "R(L)", ["en"], "gate"),
         ("tier 0  round_trip: en model on L back-translated to en", "RT(L)", ["jv", "su", "min", "ace", "id"], "gate"),
+        ("tier 0  base_pro1 / native_pro1: digit re-instantiated gsm8k", "P(L)", ["all"], "gate"),
         ("tier 2  indonesian_anchor: finetuned in id", "A_id(L)", ["jv", "su", "min", "ace"], "eval"),
         ("tier 2  pooled: one model on all languages", "A_all(L)", ["all"], "outcome"),
         ("tier 1  native + english_anchor on the contrast base", "A^B(L)", ["all"], "measure"),
@@ -172,8 +183,8 @@ def design():
             if cells == ["en"] and code == "en":
                 label = "R(id..ace)"
             d.box(label, x0 + j * cw, y, cw - 10, ch - 5, kind if label else "plain")
-    y = y0 + 9 * ch + 20
-    d.note("<b>Estimands per language L</b><br>B(L) base level; A(L) native accuracy; G(L) = A(L) - B(L) gain from native tuning; Delta_en(L) = A_en(L) - A(L) anchor advantage;<br>Reg(L) English regression; A(en) - RT(L) translator-loss bound; tau(L, L') = A(L) - A(L') the descriptive cross-language contrast.", 20, y, 560, 90)
+    y = y0 + 10 * ch + 20
+    d.note("<b>Estimands per language L</b><br>B(L) base level; A(L) native accuracy; G(L) = A(L) - B(L) gain from native tuning; Delta_en(L) = A_en(L) - A(L) anchor advantage;<br>Reg(L) English regression; A(en) - RT(L) translator-loss bound; P(L) contamination drop on re-instantiated digits; tau(L, L') = A(L) - A(L') the descriptive cross-language contrast.", 20, y, 560, 90)
     d.note("<b>Replication and inference</b><br>3 replicate finetunes per model (count confirmed by a variance pilot); items paired across languages by source id;<br>paired item bootstrap and a mixed-effects logistic model; Holm on the primary family.", 600, y, 480, 90)
     d.note("<b>Covariates reported next to every cell</b><br>base-model bits per byte on FLORES-200, tokenizer fertility per item, translation quality columns per item, Indonesian leakage, output-language fidelity, output tokens and cap hits.", 20, y + 100, 560, 80)
     d.note("<b>Adding a language</b><br>one file configs/language/{code}.yaml plus the code in the series list; the matrix, names and commands follow from pipeline/plan.py.", 600, y + 100, 480, 80)

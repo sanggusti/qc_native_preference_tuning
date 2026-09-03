@@ -19,7 +19,9 @@ def test_every_language_entry_is_valid():
     for code in codes:
         cfg = load_entry("language", code)
         assert cfg.code == code
-        assert cfg.flores_code.endswith(f"_{cfg.script}")
+        if cfg.flores_code is not None:  # null = not in FLORES-200, calibrate on NusaX
+            assert cfg.flores_code.endswith(f"_{cfg.script}")
+        assert cfg.register_instruction
 
 
 def test_every_benchmark_entry_is_valid():
@@ -28,6 +30,7 @@ def test_every_benchmark_entry_is_valid():
         assert cfg.name == name
         assert cfg.scorer_language_agnostic, f"{name}: scorer must not favor a language"
         assert "{language}" in cfg.translate.blueprint
+        assert "{register_instruction}" in cfg.translate.blueprint
         assert cfg.train_source.min_rows >= 1000
 
 
@@ -47,9 +50,13 @@ def test_tier0_matrix_matches_the_design():
     # base (1 per language) + native (replicates per language) + english_anchor (replicates per
     # non-English language; in English it coincides with native) + regression (every
     # non-English finetune on the English split) + round_trip (English finetunes on the
-    # back-translated split of every non-English language)
-    expected = n_bench * (n_lang * (1 + n_rep) + 3 * (n_lang - 1) * n_rep)
+    # back-translated split of every non-English language) + the gsm8k-only contamination
+    # cells (base and native on the digit re-instantiated split)
+    expected = n_bench * (n_lang * (1 + n_rep) + 3 * (n_lang - 1) * n_rep) + n_lang * (1 + n_rep)
     assert len(cells) == expected
+    pro1 = [c for c in cells if c["eval_variant"] == "pro1"]
+    assert pro1 and all(c["benchmark"] == "gsm8k" for c in pro1)
+    assert {c["condition"] for c in pro1} == {"base_pro1", "native_pro1"}
     assert all(c["replicate"] == 0 for c in cells if c["condition"] == "base")
     assert all(
         c["train_language"] == c["eval_language"] for c in cells if c["condition"] == "native"
