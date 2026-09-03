@@ -2,10 +2,9 @@
 
 Evaluate finetuned LLMs on Indonesian low-resource language tasks using [Inspect AI](https://inspect.aisi.org.uk/) and [Adaption](https://adaptionlabs.ai/).
 
-## Research Questions
+## Research Question
 
-- Does a sub-3B model finetuned with English critique/refinement + Indonesian/Native Language output achieve comparable win-rates against large API baselines on Indonesian conversational tasks?
-- Does increasing Indonesian/Native Language DPO preference pairs improve final answer quality, and where do gains saturate?
+Holding base model, task content and pipeline fixed, does the language used as the medium of finetuning and evaluation change task accuracy across Indonesian and its regional languages (Javanese, Sundanese, Minangkabau, Acehnese), and which language is the best medium? The proposal is in [docs/research.md](docs/research.md), the pre-registered design in [docs/methodology.md](docs/methodology.md), and the literature review in [docs/research/](docs/research/README.md).
 
 ## Architecture
 
@@ -19,8 +18,8 @@ Inspect AI (evaluation & tracing)
 Results across domains × languages
 ```
 
-**Domains:** Medicine, Programming, General, Science  
-**Languages:** Indonesian (id), Javanese (jv), Sundanese (su), Minangkabau (min)
+**Benchmarks:** gsm8k (math) and medqa (medical) first; other standard Inspect tasks through one registry file each (see [docs/benchmarks.md](docs/benchmarks.md))  
+**Languages:** English (en, reference), Indonesian (id), Javanese (jv), Sundanese (su), Minangkabau (min), Acehnese (ace); more through one registry file each
 
 ## Quick Start
 
@@ -35,15 +34,20 @@ pip install -e ".[training]"
 pip install -e ".[dev]"
 ```
 
-### Run evaluations with Inspect AI
+### Plan a series and run evaluations
 
 ```bash
-# Run the multilingual QA task with a specific model
-inspect eval src/evals/tasks/multilingual_qa.py --model openai/gpt-4o-mini
+# Expand series S01 into datasets, finetunes and eval cells (nothing is submitted)
+uv run python -m pipeline.plan
+uv run python -m pipeline.plan tier=0 format=commands stage=eval
 
-# Run with a local model
-inspect eval src/evals/tasks/multilingual_qa.py --model hf/your-finetuned-model
+# Evaluate a translated benchmark in one language (smoke run first)
+uv run inspect eval src/evals/tasks/translated_benchmark.py \
+    --model hf/sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1 \
+    -T benchmark=gsm8k -T language=jv --limit 20
 ```
+
+See [docs/reproducibility.md](docs/reproducibility.md) for the registries, naming and the stage commands.
 
 ### Use Adaption for dataset enhancement
 
@@ -69,31 +73,32 @@ python -m pipeline.datagenerator.evals_translate.mgsm_convert \
 ```
 qc_native_preference_tuning/
 ├── configs/                   # YAML configuration
-│   ├── minimal_config.yaml    # Main config (domains, languages, models)
-│   └── datagenerator/         # Data generation configs
+│   ├── language/              # language registry, one file per language
+│   ├── benchmark/             # benchmark registry, one file per standard task
+│   ├── series/                # experiment series with pinned constants
+│   ├── plan.yaml              # primary config for pipeline.plan
+│   └── datagenerator/, evals/, training/   # stage-level templates
 ├── pipeline/                  # End-to-end pipeline runners
+│   ├── plan.py                # expands a series into its matrix and commands
 │   ├── datagenerator/         # Dataset translation & enhancement
 │   ├── evals/                 # LitAI evaluation tools
-│   ├── training/              # DPO / SFT training pipeline
+│   ├── training/              # finetuning stage (AutoScientist)
 │   └── modal_runner/          # Modal cloud launcher
 ├── src/                       # Core library
-│   ├── evals/                 # Inspect AI evaluation tasks
-│   │   └── tasks/             # Task definitions (multilingual QA, etc.)
+│   ├── evals/tasks/           # Inspect tasks (translated_benchmark, multilingual_qa)
 │   ├── models/                # Model loading utilities
-│   └── utils/                 # Data loading, translation helpers
-├── tests/                     # Pytest test suite
-└── docs/                      # Research notes & experiment logs
+│   └── utils/                 # registry loader, data helpers
+├── tests/                     # Pytest test suite (no-network tests plus live smoke tests)
+└── docs/                      # proposal, methodology, reproducibility, literature, diagrams
 ```
 
 ## Metrics
 
-**Primary:** LLM-as-judge win-rate (via Inspect AI `model_graded_qa`)
+**Primary:** accuracy under a language-agnostic scorer (numeric match for math, option letter for multiple choice), paired across languages by source item, with within-language contrasts (gain from native tuning, English-anchor advantage, regression) as the causal results and the cross-language ordering reported with its covariates.
 
-**Secondary:**
-- Indonesian/Native language fluency
-- Factuality
-- Instruction following
-- Cultural/naturalness score
+**Covariates reported with every result:** base-model exposure (bits per byte on FLORES-200), tokenizer fertility, translation quality gate results, output-language fidelity, output tokens.
+
+**Secondary:** model-graded quality with a fixed judge, never in the primary metric.
 
 ## Environment Variables
 

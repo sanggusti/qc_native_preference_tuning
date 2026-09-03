@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Research codebase for **native-language preference tuning**: does the language of the finetuning dataset affect LLM performance across low-resource Indonesian languages (Indonesian `id`, Javanese `jv`, Sundanese `su`, Minangkabau `min`, other languages to be added)? Experiments cross 5 domains (medical, math, programming, science, general) x 5 languages, finetuned and evaluated per condition. The full research plan lives in `docs/research.md`; literature review in `docs/research/`.
+Research codebase for **native-language preference tuning**: holding base model, task content and pipeline fixed, does the language used as the medium of finetuning and evaluation change LLM task accuracy across Indonesian and its regional languages (English `en` as reference, Indonesian `id`, Javanese `jv`, Sundanese `su`, Minangkabau `min`, Acehnese `ace`, more to be added), and which language is the best medium? Experiments cross benchmarks (gsm8k and medqa first, other standard Inspect tasks later) x languages x finetuning conditions, with the same items translated per language. The proposal is `docs/research.md`, the pre-registered design is `docs/methodology.md`, the mechanics are `docs/reproducibility.md`, and the literature review is in `docs/research/`.
 
 This is a research repo, not a product. The workflow is tool-driven:
 
@@ -37,17 +37,19 @@ Reuse existing functions before writing new ones. Reference implementations: `pi
 
 **Pipelines are generic; experiments are configs.** This is mandatory.
 
-- Every experiment gets its own Hydra YAML under `configs/{datagenerator,evals,training}/`. Templates: `configs/datagenerator/translate/_template.yaml`, `configs/evals/_template.yaml`, `configs/training/autoscientist.yaml`.
-- Never hardcode experiment parameters (language, domain, model, dataset repo, row counts) in pipeline code. New experiment = new config file plus CLI overrides, reusing the existing pipeline module.
+- Three registries define an experiment: `configs/language/{code}.yaml` (one file per language), `configs/benchmark/{name}.yaml` (one file per standard task; the scorer must be language-agnostic), and `configs/series/{series}.yaml` (base models, languages, benchmarks, conditions with tiers, replicates, pinned AutoScientist and translation constants, naming templates). Templates: `configs/language/_template.yaml`, `configs/benchmark/_template.yaml`; stage-level templates remain under `configs/datagenerator/`, `configs/evals/`, `configs/training/`.
+- `uv run python -m pipeline.plan [series=...] [tier=0] [format=commands stage=datagen|finetune|eval]` expands a series into every dataset, finetune and eval cell with its derived names and command. Paste the plan into `docs/experiments.md` before the first paid run of a series.
+- Never hardcode experiment parameters (language, benchmark, model, dataset repo, row counts, register) in pipeline code. New language or benchmark = one registry file plus its code in the series list; new experiment = new series file plus CLI overrides, reusing the existing stage modules.
 - If a pipeline can't express a new experiment, extend it with new config keys, keeping old configs working.
-- Register each experiment in `docs/experiments.md` (config path, HF artifacts, wandb run, status).
+- Register each series in `docs/experiments.md` (config path, plan counts, HF artifacts, wandb runs, spend ledger, amendments).
 
 ### Naming conventions
 
-- HF datasets: `sanggusti/{domain}-qa-{language}` (e.g. `sanggusti/medical-qa-jv`)
-- HF models: `sanggusti/{domain}-{language}-finetuned`
-- wandb: project `qc_native_preference_tuning`, run name `{stage}-{domain}-{language}` (stages: `datagen`, `finetune`, `eval`), tags for domain, language, and finetune condition. Log the resolved Hydra config as the wandb run config.
-- Controlled-experiment constants: same base model (from `client.training_models.list()`), same `max_iterations` and `target_win_rate` across all finetune conditions. Changing a constant means a new experiment series, not an edit to an existing config.
+- HF datasets: `sanggusti/{benchmark}-{language}` with splits `train` and `test` (e.g. `sanggusti/gsm8k-jv`); derived eval splits add a suffix (`-rt`, `-nllb`, `-pro1`); the pooled training set is `sanggusti/{benchmark}-all`.
+- HF models: `sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}` (e.g. `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1`).
+- wandb: project `qc_native_preference_tuning`, run name `{stage}-{benchmark}-{language}-{condition}-{base}-r{replicate}` (stages: `datagen`, `finetune`, `eval`), tags for benchmark, language, condition, base role and series. Log the resolved Hydra config as the wandb run config.
+- Names are produced only by `src/utils/registry.py:expand_matrix` from the series `naming` templates; no stage composes a name by hand.
+- Controlled-experiment constants: same base models (ids from `client.autoscientist.list_models()`; `training_models.list()` is deprecated), same `max_iterations`, `target_win_rate`, augmentation rows, `data_format`, pinned `hyperparams`, translation settings and decoding settings across every condition of a series. Changing a constant means a new series file, not an edit to an existing one.
 
 ## Testing
 
@@ -63,7 +65,7 @@ Adaption runs, AutoScientist training, Modal GPU jobs, and eval sweeps cost mone
 
 - Config: which YAML under `configs/` defines this run (path).
 - Dataset verified: columns/schema confirmed (HF hub inspection or `datasets.get_status` row count).
-- Model verified: base model id exists in `client.training_models.list()` (or Inspect `--model` resolves).
+- Model verified: base model id exists in `client.autoscientist.list_models()` (or Inspect `--model` resolves).
 - Persistence: `push_to_hub` target set; job storage is ephemeral.
 - Tracking: wandb run will be created with the conventions above.
 - Cost/timeout: value and justification (e.g. AutoScientist `max_iterations=3` on a 3B model; Modal `timeout=` set).

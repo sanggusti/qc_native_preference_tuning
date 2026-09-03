@@ -1,29 +1,24 @@
-# AutoScientist series constants. These are the controlled-experiment constants:
-# every finetune condition in a series MUST share these values (AGENTS.md).
-# Changing any of them = a new experiment series (new config file), not an edit.
-# Consumed by pipeline/training/ (Hydra); per-condition values (dataset_id, run name)
-# come from CLI overrides.
+# Per-run override schema for pipeline/training/autoscientist_finetune.py (planned module).
+# The controlled-experiment constants do NOT live here: they come from the series file
+# (configs/series/{series}.yaml, block `autoscientist`) and are identical for every run of a
+# series. This file only names the per-run values the planner passes on the command line.
+# Consumed as: uv run python -m pipeline.training.autoscientist_finetune series=... benchmark=...
+#              base=primary language=jv replicate=1 hub_model_id=...
 
-# Base model id from client.training_models.list(); null = AutoScientist auto-selects
-# (avoid null for controlled series: the resolved model must be identical across conditions).
-model: null                 # e.g. meta-llama/Llama-3.2-3B-Instruct for the sub-3B RQ
+series: s01_language_medium   # series whose constants apply
+benchmark: null               # registry name under configs/benchmark/
+base: primary                 # base model role in the series (primary | contrast)
+language: null                # train language code, or `all` for the pooled set
+replicate: 1                  # fresh run with a new idempotency_key; the SDK exposes no seed
 
-data_format: instruction    # instruction | chat
-max_iterations: 3
-target_win_rate: 0.7
+# Derived by the planner from the series naming templates; never composed by hand
+train_dataset: null           # sanggusti/{benchmark}-{language}, split train, uploaded raw
+hub_model_id: null            # sanggusti/{benchmark}-{train_language}-{series}-{base}-r{replicate}
 
-# Synthetic rows appended before training (0 = none); count toward effective dataset size
-augmentation_domain_rows: 0
-augmentation_general_rows: 0
-
-# Hyperparameter overrides are NOT advised; AutoScientist derives them per model/dataset.
-# Inspect derived values with client.autoscientist.recommend_hyperparams(...).
-# If you must pin LoRA: lora_r 1..64, lora_alpha exactly 1x or 2x lora_r,
-# and never set batch_size (the "max" default is the only valid choice).
-hyperparams: null
-
-# Publishing
-hub_model_id: null          # sanggusti/{domain}-{language}-finetuned
+# Base model ids come from client.autoscientist.list_models(); training_models.list() is deprecated.
+# hyperparams are copied verbatim from the series file (one recommend_hyperparams call on the
+# English gsm8k dataset of the primary base). After the run, best_hyperparams must equal the
+# submission or the run is rejected.
 
 hydra:
   run:

@@ -14,8 +14,8 @@ from adaption import Adaption
 client = Adaption()
 
 # 0. Dataset must be ingested/adapted and >= 1,000 rows (platform minimum, all models)
-# 1. Base model: omit for auto-select, or pin from the training-models list
-models = client.training_models.list()
+# 1. Base model: pin an id from the model list (never omit in a controlled series)
+models = client.autoscientist.list_models().models
 # 2. Launch (constants come from configs/training/autoscientist.yaml)
 run = client.autoscientist.create(
     dataset_id=dataset_id,
@@ -28,9 +28,9 @@ run = client.autoscientist.create(
     idempotency_key=f"{domain}-{language}-{series}",  # safe retries while in progress
 )
 # 3. Monitor (default timeout 4h; raises TrainingTimeout but run continues server-side)
-run = client.autoscientist.wait_for_completion(run.experiment_id)
+run = client.autoscientist.wait_for_completion(run.id)
 # 4. Harvest: "succeeded" means target hit OR iterations exhausted; check best_win_rate
-url = client.autoscientist.download(run.experiment_id)   # best checkpoint
+client.autoscientist.download(run.id).write_to_file("artifact.tar.gz")   # gzip body, not a URL
 ```
 
 ## Hyperparameter rules
@@ -47,5 +47,5 @@ All conditions in a series share base model, `max_iterations`, `target_win_rate`
 ## Publish + track
 
 - Push the downloaded checkpoint to HF as `sanggusti/{domain}-{language}-finetuned` (`HF_TOKEN`).
-- AutoScientist has no wandb hook; log client-side: wandb run `finetune-{domain}-{language}` in project `qc_native_preference_tuning` with config = create() args + resolved run fields, metrics = `best_win_rate`, per-iteration diagnostics (loss, lr, grad norm) from the run object, plus HF model URL and `experiment_id`.
+- AutoScientist has no wandb hook; log client-side: wandb run per the series naming in `configs/series/*.yaml`, project `qc_native_preference_tuning`, config = create() args + resolved run fields (`model`, `max_iterations`, `target_win_rate`, `best_hyperparams`, `iterations_completed`), metrics = `best_win_rate`, plus HF model URL and `run.id`. The run object has no per-iteration loss or learning-rate history.
 - Pre-flight (AGENTS.md) before creating a run; runs cost credits and hours.

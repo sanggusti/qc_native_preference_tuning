@@ -9,21 +9,21 @@ Pipelines are generic; experiments are configs. A new experiment is a new Hydra 
 
 ## Protocol
 
-1. **Define the cell**: domain (`medical`, `math`, `programming`, `science`, `general`) x language (`en`, `id`, `jv`, `su`, `min`) x stage (`datagen`, `finetune`, `eval`). Check `docs/research.md` for the experiment matrix and source datasets per domain (Medical=MedQA-USMLE, Math=MGSM, Programming=HumanEval/MBPP, Science=ARC/SciQ, General=MMLU-subset/TyDiQA).
-2. **Copy the template config** for the stage:
-   - datagen: `configs/datagenerator/translate/_template.yaml` -> `configs/datagenerator/translate/{domain}_{language}.yaml`
-   - eval: `configs/evals/_template.yaml` -> `configs/evals/{domain}_{language}.yaml`
-   - finetune: `configs/training/autoscientist.yaml` (shared constants; per-condition values via CLI overrides or a small derived YAML)
-3. **Reuse the pipeline module.** `pipeline/datagenerator/evals_translate/mgsm_convert.py` is the reference datagen pipeline; `src/evals/tasks/multilingual_qa.py` the reference Inspect task. If the pipeline can't express the experiment, add config keys (keep old configs working); don't hardcode.
-4. **Names** (from AGENTS.md):
-   - HF dataset `sanggusti/{domain}-qa-{language}`, HF model `sanggusti/{domain}-{language}-finetuned`
-   - wandb project `qc_native_preference_tuning`, run `{stage}-{domain}-{language}`, tags `[domain, language, condition]`, config = resolved Hydra config
-5. **Register** the experiment in `docs/experiments.md`: config path, HF artifact URLs, wandb run URL, status.
-6. **Pre-flight** (AGENTS.md checklist) before any paid run; smoke-test with `max_rows`/`--limit` small first.
+1. **Define what is new**: a language, a benchmark, a condition, or a series. Read `docs/methodology.md` (the design and its tiers) and `docs/reproducibility.md` (registries and steps) first.
+2. **Add the registry entry**:
+   - language: copy `configs/language/_template.yaml` to `configs/language/{code}.yaml`; fill every field, decide the register and record why; add the code to `languages` in the series file.
+   - benchmark: confirm the scorer is language-agnostic (`docs/benchmarks.md`); copy `configs/benchmark/_template.yaml` to `configs/benchmark/{name}.yaml`; add the name to `benchmarks` in the series file; extend `src/evals/tasks/translated_benchmark.py` only if the scorer type is new.
+   - condition: add it under `conditions` in the series file with `train`, `tier`, `description` and any restriction keys; activate it in `active_conditions`.
+   - series: copy `configs/series/s01_language_medium.yaml` to a new file when any constant changes; never edit constants of a series that has runs.
+3. **Derive the matrix**: `uv run pytest tests/test_registry.py` and `uv run python -m pipeline.plan [tier=0]`; the new cells, names and commands appear. Paste the plan into `docs/experiments.md`.
+4. **Reuse the stage modules.** `src/evals/tasks/translated_benchmark.py` is the eval task for every benchmark; `pipeline/datagenerator/evals_translate/mgsm_convert.py` is the Adaption reference until `translate_benchmark.py` exists. If a stage can't express the experiment, add config keys (keep old configs working); don't hardcode.
+5. **Names** come only from the series `naming` templates through `src/utils/registry.py` (see AGENTS.md).
+6. **Phases**: for a new language run Phase 0 and Phase 1 of the methodology (covariates, calibration, probe, gate) before any full translation or finetune; record the results in `docs/experiments.md`.
+7. **Pre-flight** (AGENTS.md checklist) before any paid run; smoke-test with `max_rows`/`--limit` small first.
 
 ## Controlled-experiment constants
 
-All finetune conditions in a series must share: base model (pick from `client.training_models.list()`), `max_iterations`, `target_win_rate`, augmentation row counts, and `data_format`. These live in `configs/training/autoscientist.yaml`. Changing any constant starts a new experiment series with its own configs; never edit a constant in place after runs exist.
+All finetune conditions in a series must share: base models (ids from `client.autoscientist.list_models()`), `max_iterations`, `target_win_rate`, augmentation row counts, `data_format`, `training_type`, `train_on_inputs`, the pinned `hyperparams`, the translation settings and the decoding settings. These live in the series file under `autoscientist`, `translation` and `generation`. Changing any constant starts a new series file; never edit a constant in place after runs exist.
 
 ## Stage skills
 

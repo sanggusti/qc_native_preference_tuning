@@ -1,30 +1,33 @@
 # Documentation
 
-## Overview
+Research project on native-language preference tuning: does the language used as the medium of finetuning and evaluation change LLM task accuracy across Indonesian and its regional languages, and which language is the best medium? Data translation and enhancement run on Adaption Adaptive Data, finetuning on Adaption AutoScientist, evaluation on Inspect AI, tracking on wandb, with artifacts on the Hugging Face Hub.
 
-This project evaluates finetuned LLMs on Indonesian low-resource language tasks.
-It uses **Adaption** for data enhancement/translation and **Inspect AI** for
-structured evaluation with full tracing.
+## Read in this order
 
-## Pipeline
+1. [research.md](research.md): the proposal. Question, hypotheses, contributions, design in brief, relation to prior work, program.
+2. [methodology.md](methodology.md): the pre-registered design for series S01. Estimands and what is identified, conditions and tiers, data and translation protocol, the translation quality gate, finetuning and evaluation protocols, covariates, analysis plan with power, phases with go/no-go rules, threats to validity.
+3. [plan_review.md](plan_review.md): the original plan, what was at risk, what changed and why, and the toolchain audit against the installed SDKs.
+4. [reproducibility.md](reproducibility.md): registries, the planner, naming, stage commands, how to add a language or a benchmark, what is implemented and what remains.
+5. [benchmarks.md](benchmarks.md): every standard Inspect task, whether its scorer is language-agnostic, and what a translated variant needs.
+6. [experiments.md](experiments.md): the series registry, the S01 plan, the spend ledger, amendments, artifacts and the module roadmap.
 
-1. **Data Enhancement** — Use Adaption to translate and enhance evaluation datasets
-   into target languages (Indonesian, Javanese, Sundanese, Minangkabau)
-2. **Model Finetuning** — Finetuned models from Adaption Autoscientists
-3. **Evaluation** — Run Inspect AI tasks across domains (Medicine, Programming,
-   General, Science) with translated datasets
-4. **Analysis** — Compare win-rates across languages, domains, and model variants
+## Literature
 
-## Key Files
+[research/](research/README.md) holds the literature review in five notes: introduction and problem statements, preliminaries and multilingual internals, adaptation methods, datasets and evaluation, and the new note on language as the medium (language of thought, language difficulty, the target languages, prior crossed designs, base-model exposure, regional-language resources, translation quality assessment, evaluation statistics). Figures under `research/figures/` are taken from the cited papers' repositories and credited in captions.
+
+## Diagrams
+
+`diagrams/` holds editable draw.io sources with SVG and PNG renders: `pipeline_flow` (configs to analysis), `language_medium_design` (the S01 matrix and estimands), `confound_structure` (what stands between the language and the measured accuracy). `make_diagrams.py` regenerates the sources from Python specs and `render.py` renders them with the draw.io viewer in headless Chromium. The older `experiment_design`, `evals_datagenerator` and `rlhf` diagrams describe the pre-revival plan.
+
+## Key files
 
 | File | Purpose |
-|------|---------|
-| `src/evals/tasks/multilingual_qa.py` | Inspect AI evaluation task definition |
-| `pipeline/datagenerator/evals_translate/mgsm_convert.py` | MGSM dataset translation via Adaption |
-| `pipeline/evals/litai_tools.py` | LitAI inference helpers |
-| `configs/minimal_config.yaml` | Main project configuration |
-
-## Further Reading
-
-- [experiments.md](experiments.md) — Experiment logs
-- [multilingual_tasks.md](multilingual_tasks.md) — Benchmark survey and dataset notes
+|---|---|
+| `configs/language/*.yaml` | language registry |
+| `configs/benchmark/*.yaml` | benchmark registry |
+| `configs/series/*.yaml` | experiment series with pinned constants |
+| `pipeline/plan.py` | expands a series into datasets, finetunes, evals and commands |
+| `src/utils/registry.py` | registry loader and matrix expansion |
+| `src/evals/tasks/translated_benchmark.py` | the parameterized Inspect task for every translated benchmark |
+| `pipeline/datagenerator/evals_translate/mgsm_convert.py` | legacy Adaption translation reference, fixed for SDK 0.10.0 |
+| [multilingual_tasks.md](multilingual_tasks.md) | earlier benchmark survey, kept for reference |

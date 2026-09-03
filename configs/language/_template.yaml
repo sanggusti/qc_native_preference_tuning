@@ -1,0 +1,17 @@
+# Language registry entry. Copy to configs/language/{code}.yaml to add a language.
+# Every pipeline stage resolves language-specific values from here, never from code.
+# Adding a language to the study = adding this file + listing the code in a series config.
+
+code: null              # short code used in HF repo names, wandb tags, config lists (e.g. jv)
+iso_639_3: null         # ISO 639-3 (e.g. jav)
+name: null              # English name, used verbatim in Adaption translation blueprints
+native_name: null       # endonym, for documentation and prompts written in the language
+flores_code: null       # FLORES-200 / NLLB-200 code (e.g. jav_Latn); null if not covered
+script: Latn            # script used for all datasets in this study
+family: null            # genealogical placement, for interpretation only
+resource_tier: null     # high | medium | low | very_low (documented in docs/methodology.md)
+translation_register: null   # fixed register for all translations (e.g. ngoko for Javanese)
+register_notes: null    # why that register; alternatives that exist in the language
+register_instruction: null   # sentence appended to every translation blueprint through {register_instruction}
+nllb_supported: false   # NLLB-200 can act as an independent second translator for QE
+xlmr_covered: false     # language is in XLM-R's 100 languages (COMET/CometKiwi validity)

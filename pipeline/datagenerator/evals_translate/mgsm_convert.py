@@ -4,8 +4,6 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlparse
-from urllib.request import urlretrieve
 
 from adaption import Adaption
 from datasets import Dataset, load_dataset
@@ -16,10 +14,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
 	sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.utils.data_utils import load_dataset_from_hub
+from src.utils.data_utils import load_dataset_from_hub  # noqa: E402
 
 DATASET_NAME = "juletxara/mgsm"
-DOWNLOAD_LOADERS = {".csv": "csv", ".parquet": "parquet"}
+# Adapted downloads carry enhanced_* columns next to original_*; older runs echoed the
+# source column names. Both are accepted; anything else is an error, never a silent
+# fallback to the English source text.
+ADAPTED_COLUMNS = {"question": ("enhanced_prompt", "question"), "answer": ("enhanced_completion", "answer")}
 
 
 def wait_until_ready(client: Adaption, dataset_id: str) -> None:
@@ -35,19 +36,27 @@ def remove_file(path: str) -> None:
 	Path(path).unlink(missing_ok=True)
 
 
-def download_dataset(url: str) -> Dataset:
-	suffix = Path(urlparse(url).path).suffix.lower() or ".jsonl"
-	with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
+def download_dataset(client: Adaption, dataset_id: str) -> Dataset:
+	# SDK 0.10.0 streams the rows as a binary body (BinaryAPIResponse), not a URL.
+	with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as handle:
 		local_path = handle.name
 
 	try:
-		urlretrieve(url, local_path)
-		dataset = load_dataset(DOWNLOAD_LOADERS.get(suffix, "json"), data_files=local_path, split="train")
+		client.datasets.download(dataset_id, file_format="jsonl").write_to_file(local_path)
+		dataset = load_dataset("json", data_files=local_path, split="train")
 		if not isinstance(dataset, Dataset):
 			raise TypeError("Expected a single dataset split from Adaption download")
 		return dataset
 	finally:
 		remove_file(local_path)
+
+
+def adapted_value(row: dict[str, Any], field: str) -> str:
+	for key in ADAPTED_COLUMNS[field]:
+		value = row.get(key)
+		if value:
+			return str(value)
+	raise KeyError(f"adapted row has no {field} column; expected one of {ADAPTED_COLUMNS[field]}, got {sorted(row)}")
 
 
 def load_source_dataset(split: str, source_config: str) -> Dataset:
@@ -89,10 +98,10 @@ def translate_dataset(dataset: Dataset, target_language: str) -> Dataset:
 			brand_controls={"blueprint": build_blueprint(target_language)},
 		)
 		result = client.datasets.wait_for_completion(dataset_id, timeout=1800)
-		error = getattr(result, "error", None)
-		if error is not None:
+		if result.status == "failed":
+			error = getattr(result, "error_data", None)
 			raise RuntimeError(getattr(error, "message", str(error)))
-		return download_dataset(client.datasets.download(dataset_id))
+		return download_dataset(client, dataset_id)
 	finally:
 		remove_file(upload_path)
 
@@ -104,8 +113,8 @@ def to_preference_dataset(source: Dataset, translated: Dataset, source_language:
 		adapted = get_row(translated, index)
 		rows.append(
 			{
-				"prompt": adapted.get("question", original["question"]),
-				"chosen": adapted.get("answer", original["answer"]),
+				"prompt": adapted_value(adapted, "question"),
+				"chosen": adapted_value(adapted, "answer"),
 				"rejected": original["answer"],
 				"question_en": original["question"],
 				"answer_en": original["answer"],

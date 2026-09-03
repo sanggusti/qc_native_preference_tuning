@@ -1,0 +1,41 @@
+name: gsm8k
+domain: math
+inspect_reference: inspect_evals/gsm8k   # data layout; the CoT instruction style follows inspect_evals/mgsm
+scorer: numeric_match
+scorer_language_agnostic: true
+
+eval_source:
+  hf_repo: openai/gsm8k
+  config: main
+  split: test                # 1,319 items; the 250 MGSM items are tagged in the mgsm_subset column
+  fields:
+    question: question
+    answer: answer           # reasoning then "#### <number>"; target = the number after ####
+  subsets:
+    mgsm: juletxara/mgsm     # config en, split test: ids of the 250 human-selected items, for comparability
+
+train_source:
+  hf_repo: openai/gsm8k
+  config: main
+  split: train               # 7,473 items; a fixed seeded 1,000-item subset is used (ids published)
+  fields:
+    question: question
+    answer: answer
+  min_rows: 1000
+
+translate:
+  fields: [question, answer]
+  preserve:
+    - every number in English formatting (1500, 2.5; never 1.500 or 2,5)
+    - arithmetic expressions and currency symbols
+    - the "####" delimiter and the final numeric answer
+  blueprint: >-
+    Translate the question and the worked solution into {language}. Preserve every number,
+    arithmetic expression, currency symbol and the final answer exactly as written, using
+    English number formatting. Keep the same reasoning steps in the same order. Do not add
+    explanations. {register_instruction}
+  prompt_template_key: mgsm_cot_instruction   # translated once per language; the final line keeps "Answer:"
+  variants:                  # eval-only derived splits, see docs/methodology.md
+    rt: back-translation of the {language} test split into English by the same translator
+    nllb: NLLB-200 translation of the test split, second opinion on translation quality
+    pro1: digit re-instantiation of the English source, propagated into every language

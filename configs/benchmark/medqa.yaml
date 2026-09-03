@@ -1,0 +1,41 @@
+name: medqa
+domain: medical
+inspect_reference: inspect_evals/medqa
+scorer: choice
+scorer_language_agnostic: true
+
+eval_source:
+  hf_repo: bigbio/med_qa
+  config: med_qa_en_bigbio_qa
+  split: test                # 1,273 USMLE-style 4-option items
+  fields:
+    question: question
+    choices: choices
+    answer: answer           # list with the correct option text; target letter derived by index
+
+train_source:
+  hf_repo: bigbio/med_qa
+  config: med_qa_en_bigbio_qa
+  split: train               # 10,178 items; a fixed seeded 1,000-item subset is used (ids published)
+  fields:
+    question: question
+    choices: choices
+    answer: answer
+  min_rows: 1000
+
+translate:
+  fields: [question, choices]
+  preserve:
+    - option order and the index of the correct option
+    - drug names, units, laboratory values and standard abbreviations
+    - the translated correct option must be byte-identical to one translated choice
+  blueprint: >-
+    Translate the clinical vignette and every answer option into {language}. Keep the options
+    in the same order and do not merge or drop any option. Keep drug names, units, laboratory
+    values and standard abbreviations unchanged. Be formal and terminologically precise in
+    the register given next; where the language has no established medical term, keep the
+    Indonesian or Latin term and mark nothing else. {register_instruction}
+  prompt_template_key: multiple_choice_instruction   # translated once per language; keeps the literal "ANSWER: $LETTER"
+  variants:
+    rt: back-translation of the {language} test split into English by the same translator
+    nllb: NLLB-200 translation of the test split, second opinion on translation quality
