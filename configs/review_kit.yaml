@@ -1,0 +1,20 @@
+# Human review kit (issue #58): sample export and annotation import.
+# Export: uv run python -m pipeline.datagenerator.review_export \
+#   benchmark=gsm8k language=jv sample_jsonl=data/gate/sample.jsonl
+# Import: uv run python -m pipeline.datagenerator.review_import \
+#   benchmark=gsm8k language=jv 'annotation_files=[a1.jsonl,a2.jsonl]'
+
+defaults:
+  - series: s01_language_medium
+  - benchmark: gsm8k
+  - language: jv
+  - _self_
+
+split: test
+sample_jsonl: null       # gate sample rows with source_id + risk (export input)
+annotation_files: []     # annotated JSONL files, one per annotator (import input)
+annotators: [a1, a2]
+review_top_risk: 50
+review_random: 100
+review_seed: 47
+output_dir: data/review
