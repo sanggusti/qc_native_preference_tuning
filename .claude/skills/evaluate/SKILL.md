@@ -40,7 +40,7 @@ uv run inspect eval src/evals/tasks/multilingual_qa.py \
 
 - `--run-config` bundles task + model + generation settings in one file. `--model-role grader=...` / task `model_roles` pin the judge model separately from the model under eval.
 - Logs land in `logs/inspect/` (`minimal_config.yaml` convention; set `INSPECT_LOG_DIR` or `--log-dir`). Inspect with `uv run inspect view`.
-- Finetuned checkpoints: eval HF models via `--model hf/sanggusti/{domain}-{language}-finetuned` (needs `[training]` extra + GPU; use the `compute` skill to run on Modal/Lightning) or serve them and use an OpenAI-compatible endpoint.
+- Finetuned checkpoints: eval HF models via `--model hf/sanggusti/{domain}-{language}-finetuned` (needs `[training]` extra + GPU; use the `compute` skill to run on Modal) or serve them and use an OpenAI-compatible endpoint.
 
 ## Judging (primary metric = pairwise win rate)
 

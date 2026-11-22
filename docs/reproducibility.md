@@ -159,7 +159,7 @@ Remaining stage modules, in the order the phases need them (tracked in `docs/exp
 
 | Module | Purpose |
 |---|---|
-| `pipeline/covariates/fertility.py`, `bits_per_byte.py` | per-language, per-item token counts and base-model bits per byte on FLORES-200 devtest (runs on Lightning or Modal) |
+| `pipeline/covariates/fertility.py`, `bits_per_byte.py` | per-language, per-item token counts and base-model bits per byte on FLORES-200 devtest (runs on Modal) |
 | `pipeline/datagenerator/translate_benchmark.py` | registry-driven translation: fixed item subset, blueprint route with pinned settings, canonical schema, quality columns, gate, Hub push, raw-mode upload |
 | `pipeline/datagenerator/gate.py` | structural checks, GlotLID, leakage, register, chrF++ against references, thresholds, report into the dataset card |
 | `pipeline/modal_runner/nllb_translate.py` | NLLB-200 3.3B on Modal: FLORES calibration translations, second-opinion translations, back-translations for the quality columns and the round-trip split (Phase 1) |
@@ -172,4 +172,4 @@ Remaining stage modules, in the order the phases need them (tracked in `docs/exp
 
 ## 9. Environment and tracking
 
-Secrets come from `.env` (`ADAPTION_API_KEY`, `HF_TOKEN`, `WANDB_API_KEY`, `LIGHTNING_API_KEY`, judge keys). Modal jobs read the cloud secrets named `huggingface` and `wandb`. Every stage logs its resolved configuration as the wandb run config, the Hub URLs it produced, the Adaption ids it used, and the git commit of the configs. The pre-flight checklist in `AGENTS.md` applies before every paid run.
+Secrets come from `.env` (`ADAPTION_API_KEY`, `HF_TOKEN`, `WANDB_API_KEY`, judge keys). Modal jobs read the cloud secrets named `huggingface` and `wandb`. Every stage logs its resolved configuration as the wandb run config, the Hub URLs it produced, the Adaption ids it used, and the git commit of the configs. The pre-flight checklist in `AGENTS.md` applies before every paid run.

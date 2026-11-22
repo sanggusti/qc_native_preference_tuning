@@ -14,7 +14,7 @@ Invoke the matching project skill before starting work on a stage:
 | Run the transparent LoRA backend on Modal (condition `sft_check`, `pipeline/training/sft_finetune.py`) | `finetune` for the recipe constants and naming, then `compute` for the Modal job |
 | Write or run Inspect AI evals; judge setup; eval sweeps | `evaluate` |
 | Decide a tier, park or promote a benchmark or language, amend a pre-registered constant | `new-experiment` (tiers and amendments) |
-| Modal GPU jobs or Lightning AI compute/inference | `compute` |
+| Modal GPU jobs or batch compute | `compute` |
 
 The `metr-*` skills are productivity-study tooling, unrelated to the research workflow.
 
