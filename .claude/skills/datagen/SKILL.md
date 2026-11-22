@@ -47,10 +47,10 @@ url = client.datasets.download(ds.dataset_id)  # presigned URL
 
 ## Publish to HF
 
-- Naming: `sanggusti/{domain}-qa-{language}`. Push via `Dataset.push_to_hub(repo_id, private=...)` (uses `HF_TOKEN`), as in `mgsm_convert.py:main`.
-- Keep provenance columns (`question_en`, `answer_en`, `source_language`, `target_language`) so evals and audits can trace rows.
-- Log the run to wandb: project `qc_native_preference_tuning`, run `datagen-{domain}-{language}`, config = resolved Hydra config, plus the HF URL and Adaption dataset_id.
+- Naming: `sanggusti/{benchmark}-{language}` from the series `naming` block via `src/utils/registry.py` (never composed by hand). Push via `Dataset.push_to_hub(repo_id, private=...)` (uses `HF_TOKEN`), as in `mgsm_convert.py:main`.
+- Keep provenance columns (`question_en`, `answer_en`, `language`, `register`, `blueprint_hash`) so evals and audits can trace rows.
+- Log the run to wandb: project `qc_native_preference_tuning`, run `datagen-{benchmark}-{language}`, config = resolved Hydra config, plus the HF URL and Adaption dataset_id.
 
 ## Config
 
-Each datagen experiment = one YAML in `configs/datagenerator/translate/` (template: `_template.yaml`). Existing example: `configs/datagenerator/evals_convert/mgsm_convert.yaml`.
+Each datagen run takes `benchmark`, `language`, `series` overrides against the registries (`configs/language/`, `configs/benchmark/`, `configs/series/`). One-off experiments still use one YAML in `configs/datagenerator/translate/` (template: `_template.yaml`). Existing example: `configs/datagenerator/evals_convert/mgsm_convert.yaml`.

@@ -1,0 +1,8 @@
+code: su
+name: Sundanese
+iso_639_3: sun
+flores_code: sun_Latn
+script: Latin
+register: loma
+register_instruction: Use everyday loma Sundanese in Latin script, polite but not lemes.
+exposure_note: Low pretraining exposure; second largest local language by speakers.

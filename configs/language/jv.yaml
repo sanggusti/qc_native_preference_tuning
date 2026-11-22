@@ -1,0 +1,8 @@
+code: jv
+name: Javanese
+iso_639_3: jav
+flores_code: jav_Latn
+script: Latin
+register: ngoko
+register_instruction: Use everyday ngoko Javanese in Latin script, polite but not krama.
+exposure_note: Medium pretraining exposure; largest local language by speakers.

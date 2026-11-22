@@ -1,0 +1,17 @@
+name: gsm8k
+source_dataset: openai/gsm8k
+source_config: main
+source_split_train: train
+source_split_test: test
+record_fields:
+  question: question
+  answer: answer
+preserved_fields:
+  - answer
+scorer: numeric
+scorer_language_agnostic: true
+instruction_template_key: math_qa
+blueprint: >-
+  Translate the following grade school math word problem into {language}.
+  {register_instruction} Keep all numbers, units, and arithmetic unchanged, and
+  keep the gold answer after #### exactly as is.

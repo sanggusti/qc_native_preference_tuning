@@ -1,0 +1,9 @@
+code: bjn
+name: Banjarese
+iso_639_3: bjn
+# Verify bjn_Latn against the NLLB/FLORES release list in the #52 smoke run.
+flores_code: bjn_Latn
+script: Latin
+register: standard
+register_instruction: Use standard Banjarese in Latin script as in published prose.
+exposure_note: Very low pretraining exposure; available for later series.

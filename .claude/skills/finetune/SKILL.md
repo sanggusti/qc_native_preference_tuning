@@ -42,10 +42,10 @@ url = client.autoscientist.download(run.experiment_id)   # best checkpoint
 
 ## Controlled experiment
 
-All conditions in a series share base model, `max_iterations`, `target_win_rate`, augmentation rows, and `data_format` (see AGENTS.md). Record the resolved values returned on the run object; omitted params resolve server-side and differ per model.
+All conditions in a series share base models, `max_iterations`, `target_win_rate`, augmentation rows, `data_format`, and pinned `hyperparams` (series `autoscientist` block; see AGENTS.md). The first run of a series calls `recommend_hyperparams` and records the fields; every later run passes them verbatim. Record the resolved values returned on the run object; omitted params resolve server-side and differ per model.
 
 ## Publish + track
 
-- Push the downloaded checkpoint to HF as `sanggusti/{domain}-{language}-finetuned` (`HF_TOKEN`).
-- AutoScientist has no wandb hook; log client-side: wandb run `finetune-{domain}-{language}` in project `qc_native_preference_tuning` with config = create() args + resolved run fields, metrics = `best_win_rate`, per-iteration diagnostics (loss, lr, grad norm) from the run object, plus HF model URL and `experiment_id`.
+- Push the downloaded checkpoint to HF as `sanggusti/{benchmark}-{language}-{condition}-{base}-r{replicate}` from `src/utils/registry.py` (`HF_TOKEN`).
+- AutoScientist has no wandb hook; log client-side: wandb run `finetune-{benchmark}-{language}-{condition}-{base}-r{replicate}` in project `qc_native_preference_tuning` with config = create() args + resolved run fields, metrics = `best_win_rate`, per-iteration diagnostics (loss, lr, grad norm) from the run object, plus HF model URL and `experiment_id`.
 - Pre-flight (AGENTS.md) before creating a run; runs cost credits and hours.

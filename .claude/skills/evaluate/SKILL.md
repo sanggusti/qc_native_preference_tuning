@@ -5,7 +5,7 @@ description: Write and run Inspect AI evaluations for this project, including LL
 
 # Evaluation (Inspect AI)
 
-Tasks live in `src/evals/tasks/`; the reference is `multilingual_qa.py` (parameterized `@task`, `model_graded_qa` scorer, domain/language metadata). Eval configs live in `configs/evals/` (template `_template.yaml`). Inspect docs serve markdown: `https://inspect.aisi.org.uk/<page>.html.md` (index `/llms.txt`).
+Tasks live in `src/evals/tasks/`; the S01 reference is `translated_benchmark.py` (parameterized `@task` over benchmark/language, language-agnostic scorers from the benchmark registry). Eval configs live in `configs/evals/` (template `_template.yaml`). Inspect docs serve markdown: `https://inspect.aisi.org.uk/<page>.html.md` (index `/llms.txt`).
 
 ## Task pattern (keep tasks parameterized)
 
@@ -40,15 +40,15 @@ uv run inspect eval src/evals/tasks/multilingual_qa.py \
 
 - `--run-config` bundles task + model + generation settings in one file. `--model-role grader=...` / task `model_roles` pin the judge model separately from the model under eval.
 - Logs land in `logs/inspect/` (`minimal_config.yaml` convention; set `INSPECT_LOG_DIR` or `--log-dir`). Inspect with `uv run inspect view`.
-- Finetuned checkpoints: eval HF models via `--model hf/sanggusti/{domain}-{language}-finetuned` (needs `[training]` extra + GPU; use the `compute` skill to run on Modal/Lightning) or serve them and use an OpenAI-compatible endpoint.
+- Finetuned checkpoints: serve them on Modal (see the `compute` skill) and eval via the OpenAI-compatible endpoint (`--model openai-api/...`), or eval HF models directly via `--model hf/sanggusti/...` (needs `[training]` extra + GPU).
 
 ## Judging (primary metric = pairwise win rate)
 
 - Built-ins: `model_graded_qa()` / `model_graded_fact()`; customize `template`, `instructions`, `grader_model`, multi-judge voting by passing a list of models.
 - Project judge prompts: `src/prompts/judge.py` (rubric + pairwise essay judges), `src/prompts/medical_tasks.py` (medical extraction + privacy judges).
 - **English-bias pitfall** (docs/research/4): LLM judges favor English/high-resource outputs. Grade with explicit rubrics, instruct the judge in the target language where feasible, and keep an English regression check (GSM8K/MMLU subset) per docs/research.md.
-- Full matrix: 6 finetune conditions x 5 eval languages x 5 domains = 150 runs; drive it as a loop over `configs/evals/*.yaml`, one wandb run per eval.
+- Full matrix: expand the series with `uv run python -m pipeline.plan format=commands stage=eval` and run every printed cell; one wandb run per eval.
 
 ## Results -> wandb
 
-Read scores from the eval log (`inspect_ai.log.read_eval_log(path)` or `inspect_ai.analysis` dataframes) and log to wandb: project `qc_native_preference_tuning`, run `eval-{domain}-{language}`, tags include the finetune condition; log accuracy/win-rate plus the log file path and HF model/dataset URLs.
+Read scores from the eval log (`inspect_ai.log.read_eval_log(path)` or `inspect_ai.analysis` dataframes) and log to wandb: project `qc_native_preference_tuning`, run `eval-{benchmark}-{language}-{condition}-{base}-r{replicate}`, tags include benchmark, language, condition, base role; log accuracy plus the log file path and HF model/dataset URLs.

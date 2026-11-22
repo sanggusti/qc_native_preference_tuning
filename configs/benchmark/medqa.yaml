@@ -1,0 +1,20 @@
+name: medqa
+# Exact source schema and splits are verified in the #50 smoke run before full conversion.
+source_dataset: GBaker/MedQA-USMLE-4-options
+source_config: default
+source_split_train: train
+source_split_test: test
+record_fields:
+  question: question
+  options: options
+  answer: answer
+preserved_fields:
+  - answer_idx
+  - answer
+scorer: choice
+scorer_language_agnostic: true
+instruction_template_key: medical_mcqa
+blueprint: >-
+  Translate the following medical board exam question and its four options into {language}.
+  {register_instruction} Preserve medical entities and terminology precisely, keep the
+  option order fixed, and do not reveal or change the correct answer.

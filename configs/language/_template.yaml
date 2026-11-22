@@ -1,0 +1,11 @@
+# Language entry template. Copy to {code}.yaml and fill in.
+# Loaded by src/utils/registry.py (load_language); keys must match this schema exactly.
+
+code: null                  # short code used in dataset/model ids, e.g. jv
+name: null                  # full English name, e.g. Javanese
+iso_639_3: null             # ISO 639-3 code, e.g. jav
+flores_code: null           # FLORES-200 code, e.g. jav_Latn; null = NusaX fallback for evals
+script: null                # dominant script, e.g. Latin
+register: null              # target register, e.g. ngoko
+register_instruction: null  # one sentence prompt fragment enforcing the register
+exposure_note: null         # brief note on expected pretraining exposure for this language

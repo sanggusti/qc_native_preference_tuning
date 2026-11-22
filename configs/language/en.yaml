@@ -1,0 +1,8 @@
+code: en
+name: English
+iso_639_3: eng
+flores_code: eng_Latn
+script: Latin
+register: neutral
+register_instruction: Use neutral standard English with no regionalisms.
+exposure_note: Very high pretraining exposure; control and anchor language.

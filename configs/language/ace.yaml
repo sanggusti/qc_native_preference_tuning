@@ -1,0 +1,8 @@
+code: ace
+name: Acehnese
+iso_639_3: ace
+flores_code: ace_Latn
+script: Latin
+register: standard
+register_instruction: Use standard Acehnese in Latin script as in published prose.
+exposure_note: Very low pretraining exposure; most distant test language in the series.

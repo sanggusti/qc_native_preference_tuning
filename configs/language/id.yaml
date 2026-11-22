@@ -1,0 +1,8 @@
+code: id
+name: Indonesian
+iso_639_3: ind
+flores_code: ind_Latn
+script: Latin
+register: formal
+register_instruction: Use standard formal Indonesian (bahasa Indonesia baku).
+exposure_note: High pretraining exposure for a regional language; national lingua franca.

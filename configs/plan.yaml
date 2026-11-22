@@ -1,0 +1,17 @@
+# Plan a full experiment series: print the matrix or stage commands.
+#   uv run python -m pipeline.plan                                   # matrix for default series
+#   uv run python -m pipeline.plan format=commands                    # all stage commands
+#   uv run python -m pipeline.plan format=commands stage=eval filter.benchmark=gsm8k
+
+defaults:
+  - series: s01_language_medium
+  - _self_
+
+format: matrix      # matrix | commands | all
+stage: all          # all | datagen | finetune | eval
+filter:             # cell filters; null = no filter (dotted overrides avoid group clashes)
+  tier: null
+  benchmark: null
+  language: null
+  condition: null
+  base: null

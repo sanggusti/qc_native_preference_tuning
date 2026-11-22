@@ -1,0 +1,8 @@
+code: min
+name: Minangkabau
+iso_639_3: min
+flores_code: min_Latn
+script: Latin
+register: standard
+register_instruction: Use standard Minangkabau in Latin script as in published prose.
+exposure_note: Very low pretraining exposure; tests generalization to unseen relatives.

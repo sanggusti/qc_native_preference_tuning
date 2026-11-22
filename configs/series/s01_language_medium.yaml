@@ -1,0 +1,113 @@
+# Series s01: language-of-medium study (native vs anchor vs pooled finetuning).
+# Loaded by src/utils/registry.py (load_series, expand_matrix, unique_datasets).
+
+series: s01_language_medium
+description: >-
+  Cross of 6 languages by 2 benchmarks by 4 finetune conditions plus an
+  eval-only base. Tests whether finetuning in the native language beats
+  English-anchored, Indonesian-anchored, and pooled multilingual training
+  on low-resource Indonesian languages.
+
+languages:
+  - en
+  - id
+  - jv
+  - su
+  - min
+  - ace
+  - ban
+  - bjn
+  - bug
+
+benchmarks:
+  - gsm8k
+  - medqa
+
+# train_languages "{languages}" expands to one train cell per series language.
+# train_languages "all" trains on the pooled sanggusti/{benchmark}-all dataset.
+# native has no en/id train cells: those media coincide with the anchor arms
+# (see degenerate_cells); native-en/native-id eval cells reuse anchor checkpoints.
+conditions:
+  - name: base
+    tier: 0
+    finetune: false
+    train_languages: []
+  - name: native
+    tier: 0
+    finetune: true
+    train_languages:
+      - jv
+      - su
+      - min
+      - ace
+      - ban
+      - bjn
+      - bug
+  - name: english_anchor
+    tier: 0
+    finetune: true
+    train_languages:
+      - en
+  - name: indonesian_anchor
+    tier: 2
+    finetune: true
+    train_languages:
+      - id
+  - name: pooled
+    tier: 1
+    finetune: true
+    train_languages:
+      - all
+
+# Degenerate eval cells: (condition, eval_language) pairs whose train medium
+# coincides with another condition's checkpoint. The eval cell keeps its own
+# label but references the other condition's checkpoint of the same replicate.
+degenerate_cells:
+  - condition: native
+    eval_language: en
+    use_condition: english_anchor
+  - condition: native
+    eval_language: id
+    use_condition: indonesian_anchor
+
+# Base model ids from client.autoscientist.list_models(); null = unpinned.
+# Pinned in Phase 2 by amendment; changing a base starts a new series.
+base_models:
+  primary: null
+  contrast: null
+
+naming:
+  dataset_template: "sanggusti/{benchmark}-{language}{suffix}"
+  model_template: "sanggusti/{benchmark}-{language}-{condition}-{base}-r{replicate}"
+  base_slugs: {}
+  model_provider: "openai-api"
+  log_template: "logs/{series}/{benchmark}/{eval_language}/{condition}/{base}-r{replicate}"
+
+train_rows: 1000
+test_rows: 250
+replicates: 3
+sampling_seed: 47
+
+decoding:
+  temperature: 0.0
+  max_tokens: 512
+
+translation:
+  recipe_dedup: false
+  recipe_rephrase: false
+  recipe_reasoning_trace: false
+  hallucination_mitigation: false
+  safety_categories: []
+  job_max_rows: null
+
+autoscientist:
+  data_format: instruction
+  max_iterations: 3
+  target_win_rate: 0.7
+  augmentation_domain_rows: 0
+  augmentation_general_rows: 0
+  hyperparams: null
+  hyperparams_source: null
+
+wandb:
+  project: qc_native_preference_tuning

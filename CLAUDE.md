@@ -12,7 +12,7 @@ Invoke the matching project skill before starting work on a stage:
 | Create, translate, or enhance a dataset; build preference pairs; publish datasets | `datagen` |
 | Launch or monitor AutoScientist finetuning; publish models | `finetune` |
 | Write or run Inspect AI evals; judge setup; eval sweeps | `evaluate` |
-| Modal GPU jobs or Lightning AI compute/inference | `compute` |
+| Modal GPU jobs or batch compute | `compute` |
 
 The `metr-*` skills are productivity-study tooling, unrelated to the research workflow.
 

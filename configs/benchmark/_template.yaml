@@ -1,0 +1,14 @@
+# Benchmark entry template. Copy to {name}.yaml and fill in.
+# Loaded by src/utils/registry.py (load_benchmark); keys must match this schema exactly.
+
+name: null                      # short name used in dataset/model ids, e.g. gsm8k
+source_dataset: null            # HF Hub id of the source benchmark, e.g. openai/gsm8k
+source_config: null             # HF config / subset name
+source_split_train: null        # source split converted to train rows
+source_split_test: null         # source split converted to test rows
+record_fields: {}               # canonical field -> source column mapping
+preserved_fields: []            # source columns copied through verbatim (never translated)
+scorer: null                    # numeric | choice | code_exec
+scorer_language_agnostic: null  # true when scoring is independent of response language
+instruction_template_key: null  # key into the pipeline instruction template table
+blueprint: null                 # translation blueprint; must use {language} and {register_instruction}
