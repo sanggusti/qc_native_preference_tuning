@@ -1,0 +1,86 @@
+# Translation quality gate (issue #51, methodology section 6).
+# Every threshold lives here, never hardcoded. Values cite methodology section 6.
+# Smoke: uv run python -m pipeline.datagenerator.gate --help
+
+benchmark: gsm8k
+language: jv
+series: s01_language_medium
+split: test
+
+# Row sources (translated rows plus their English source; exactly one each).
+input_jsonl: null
+input_dataset: null
+input_split: test
+source_jsonl: null
+source_dataset: null
+text_column: question
+id_column: id
+
+# NLLB job outputs (issue #52 JSONL) keyed by source_id.
+nllb_second_opinion_jsonl: null   # en -> L translations, for qe_chrf_nllb
+nllb_backtranslation_jsonl: null  # L -> en translations, for qe_bt_* and -rt
+
+# Step 0 calibration inputs.
+flores_dataset: facebook/flores
+flores_split: devtest
+calibration_json: null            # read cached calibration instead of recomputing
+
+# Step 1 hard checks.
+length_ratio_min: 0.5             # calibrated band default; step 0 refines on FLORES
+length_ratio_max: 2.0
+echo_chrf_max: 90.0               # methodology 0.9 on the 0-100 chrF++ scale
+sentence_min_chars: 20            # length floor for a qualifying sentence
+lid_prob_min: 0.5                 # default; step 0 calibrates so 95% of references pass
+lid_non_target_max_share: 0.2     # fail above 20% non-target qualifying sentences
+lid_reject_codes: [ind_Latn, eng_Latn]
+lid_model_path: null              # FastText GlotLID model; null with lid_stub=true for tests
+lid_stub: false
+refusal_patterns:
+  - i cannot translate
+  - i can't translate
+  - as an ai language model
+  - as an ai, i
+metatext_patterns:
+  - "note:"
+  - "translation:"
+  - "here is the translation"
+
+# Step 2 risk rank (fixed formula, documented in gate.py).
+leak_penalty: 50.0
+
+# Step 3 LLM judge (advisory only; skipped with a warning when unset).
+judge_model: null                 # e.g. gpt-4o-mini; null skips the judge
+judge_sample_decile: 0.1          # bottom risk decile
+judge_sample_random: 0.1          # plus a 10% random sample
+judge_prompt: >-
+  Score the translation quality of the text below from 0 (wrong) to 100 (clean),
+  listing error spans. English source and few-shot examples in {language} follow.
+  Respond with a single JSON object: {{"esa_score": <0-100>, "spans": [...]}}.
+
+# Step 4 review sample.
+review_top_risk: 50
+review_random: 100
+review_seed: 47
+
+# Step 5 admission (methodology section 6, fixed before any run).
+admit_nllb_ratio: 0.9
+admit_chrf_floor: 30.0
+admit_bootstrap_draws: 10000
+admit_bootstrap_seed: 47
+admit_lid_share: 0.90
+admit_register_share: 0.90        # jv and su only
+admit_fallback_share: 0.05
+admit_max_answer_changed: 0
+admit_max_major_critical: 3
+
+output_dir: data/gate
+push_report_to_hub: null          # optional HF dataset id for the JSON report
+
+wandb:
+  project: qc_native_preference_tuning
+  run_prefix: datagen-gate
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
