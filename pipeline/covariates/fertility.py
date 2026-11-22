@@ -81,14 +81,14 @@ def _flores_texts(dataset: str, split: str, flores_code: str | None) -> list[str
 
 @hydra_main(version_base=None, config_path="../../configs/covariates", config_name="covariates")
 def main(cfg: DictConfig) -> None:
-    from src.utils.registry import load_language, load_series
+    from src.utils.registry import load_entry, load_series
 
     series = load_series(cfg.series)
     codes = list(cfg.languages) if cfg.languages else list(series["languages"])
     tokenizers = {role: _load_tokenizer(model) for role, model in series["base_models"].items()}
     results: dict[str, Any] = {"series": cfg.series, "tokenizers": series["base_models"]}
     for code in codes:
-        entry = load_language(code)
+        entry = load_entry("language", code)
         texts = _flores_texts(cfg.flores_dataset, cfg.flores_split, entry["flores_code"])
         results[code] = {
             role: fertility_for_texts(tokenizer, texts)
