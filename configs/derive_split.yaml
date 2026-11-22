@@ -1,0 +1,23 @@
+# Derived evaluation splits and pooled training set (issue #53).
+#   uv run python -m pipeline.datagenerator.derive_split \
+#     benchmark=gsm8k language=jv variant=rt nllb_jsonl=data/nllb/bt.jsonl input_jsonl=data/test.jsonl
+#   uv run python -m pipeline.datagenerator.pool_benchmark benchmark=gsm8k
+
+defaults:
+  - series: s01_language_medium
+  - benchmark: gsm8k
+  - language: jv
+  - _self_
+
+variant: rt              # rt | nllb | pro1 (derive_split only)
+languages: null          # pro1/pool language list; null = all series languages
+input_dataset: null      # HF id for rt/nllb input (alternative to input_jsonl)
+input_split: test
+input_jsonl: null        # local JSONL rows (alternative to input_dataset)
+nllb_jsonl: null         # #52 output JSONL (required for rt/nllb)
+test_source: hub         # pro1/pool per-language tests: hub (repo template) or local dir
+seed: 47
+max_rows: null           # cap for smoke runs
+push_to_hub: null
+private: false
+output_dir: data/derived
