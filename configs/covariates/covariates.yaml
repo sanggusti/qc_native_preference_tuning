@@ -1,0 +1,41 @@
+# Covariate scripts (Phase 0): fertility, bits per byte, lexical similarity,
+# reference audit. One config drives all four modules under pipeline/covariates/.
+# HF dataset ids and columns are verified in the Phase 0 smoke run.
+
+series: s01_language_medium
+languages: null            # null = all series languages; or a list like [en, id, jv]
+output_dir: data/covariates
+
+flores_dataset: facebook/flores
+flores_split: devtest
+nusax_dataset: indonlp/nusax-senti
+nusax_id_column: null      # set after verifying the NusaX schema in the smoke run
+nusax_text_columns: {}     # language code -> column name; set after verifying schema
+heldout_items: null        # optional JSONL of project items ({id, language, text}) for BPB pairing
+
+# Seed marker lists for the Javanese register heuristic (reference_audit.py).
+# Documented approximation, extendable without code changes.
+ngoko_markers:
+  - aku
+  - kowe
+  - dheweke
+  - iki
+  - kuwi
+  - arep
+  - ora
+krama_markers:
+  - kula
+  - panjenengan
+  - piyambakipun
+  - menika
+  - badhe
+  - mboten
+
+wandb:
+  project: qc_native_preference_tuning
+  run_prefix: datagen-covariates
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
