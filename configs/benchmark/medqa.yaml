@@ -3,6 +3,15 @@ domain: medical
 inspect_reference: inspect_evals/medqa
 scorer: choice
 scorer_language_agnostic: true
+license: research use; see source repository
+instruction_en: |-
+  Answer the following multiple choice question. The last line of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of {letters}.
+
+  Question:
+  {question}
+
+  Options:
+  {choices}
 
 eval_source:
   hf_repo: bigbio/med_qa

@@ -119,6 +119,7 @@ active_conditions:
 # (the SDK exposes no seed). The count is confirmed by the Phase 4 variance probe.
 replicates: [1, 2, 3]
 train_rows: 1000            # identical item set (same source ids) across languages
+sampling_seed: 47           # seed for the fixed train subset (methodology 5.1)
 eval_rows: null             # null = full test split
 
 autoscientist:              # constants shared by every finetune run on the managed backend
