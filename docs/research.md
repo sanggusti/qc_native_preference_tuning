@@ -33,7 +33,7 @@ Stated with the observation that would count against each in the methodology (se
 - H4, translator loss: the round-trip translator loss is positive for the lowest-exposure languages; the part of the native gap above it is not attributable to the translator.
 - H5, exposure invariance: the language ordering is invariant to a size-matched base model with a different exposure profile; if not, the ordering is model-specific and the covariate table says which component (corpus, tokenizer, post-training) moves with it.
 - H6, platform independence: a plain LoRA loop with fixed seeds reproduces the managed finetuning results on English and Indonesian within the replicate interval; if not, every managed-backend result is conditional on the platform.
-- Descriptive, not tested: D1, base and native accuracy are ordered by pretraining exposure, en >= id > jv, su > min, ace; D2, among regional languages, gains track lexical similarity to Indonesian. Premise P: the intuition that Indonesian is a simpler medium is reported as measurements; under current tokenizers standard written Indonesian is expected to cost more tokens per item than English.
+- Descriptive, not tested: D1, base and native accuracy are ordered by pretraining exposure, en >= id > jv, su > min, ace, ban, bjn, bug; D2, among regional languages, gains track lexical similarity to Indonesian. Premise P: the intuition that Indonesian is a simpler medium is reported as measurements; under current tokenizers standard written Indonesian is expected to cost more tokens per item than English.
 
 ## 4. Design in brief
 
@@ -43,7 +43,7 @@ Stated with the observation that would count against each in the methodology (se
 
 | Element | Choice |
 |---|---|
-| Languages | en (reference), id, jv, su, min in tier 0; ace in tier 2 after the gate and the floor rule; more through one registry file each |
+| Languages | en (reference), id, jv, su, min in tier 0; ace, ban, bjn, bug in tier 2 after the gate and the floor rule; more through one registry file each |
 | Benchmarks | gsm8k (GSM8K test, 1,319 items, MGSM subset tagged) in tier 0; the second benchmark is decided in Phase 2 against stated criteria, with medqa (MedQA test, 1,273 items) as the placeholder parked at tier 3; more through one registry file each, restricted to language-agnostic scorers |
 | Training data | fixed 1,000-item subset of each benchmark's training source, identical ids in every language |
 | Translation | Adaption Adaptive Data with a fixed blueprint and register sentence per language; a six-step gate with FLORES-200 and NusaX calibration, per-item quality columns, NLLB-200 as the independent second translator and back-translator, and a human error-span review |
@@ -55,9 +55,9 @@ Stated with the observation that would count against each in the methodology (se
 
 ## 5. Contributions
 
-1. To our knowledge, the first test of Indonesian as a finetuning pivot for its regional languages, inside an item-paired, pipeline-controlled comparison of finetuning language across six languages, with exposure, fertility and translation quality measured rather than assumed.
-2. Gated, item-aligned translations of GSM8K (and of the second benchmark once chosen) into id, jv, su, min and ace, published with their gate scores, human-verified subsets and excluded-item lists, plus round-trip and NLLB-200 comparison splits.
-3. Per-language covariate tables (tokenizer fertility and bits per byte under current base models) for jv, su, min and ace, which no publication reports.
+1. To our knowledge, the first test of Indonesian as a finetuning pivot for its regional languages, inside an item-paired, pipeline-controlled comparison of finetuning language across nine languages, with exposure, fertility and translation quality measured rather than assumed.
+2. Gated, item-aligned translations of GSM8K (and of the second benchmark once chosen) into id, jv, su, min, ace, ban, bjn and bug, published with their gate scores, human-verified subsets and excluded-item lists, plus round-trip and NLLB-200 comparison splits.
+3. Per-language covariate tables (tokenizer fertility and bits per byte under current base models) for jv, su, min, ace, ban, bjn and bug, which no publication reports.
 4. Two eval-only controls and one training-side control that are reusable elsewhere: the round-trip bound that charges loss to the translator without the model ever seeing the language, a digit re-instantiation split that tests English contamination while keeping the item pairing, and a transparent finetuning loop that bounds what a managed finetuning service contributes to a result.
 5. A config-driven pipeline in which adding a language or a standard Inspect benchmark is one file, tiers compose over conditions, benchmarks and languages, and the full sweep is derived by a planner before any paid run.
 

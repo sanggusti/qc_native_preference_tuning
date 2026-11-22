@@ -212,7 +212,7 @@ def confounds():
     for src in (exp, tq, fert, reg, leak, cont, scorer, opt, seed):
         d.edge(src, acc, exit=(1, 0.5), entry=(0, 0.5), points=[(900, 455)])
     d.edge(exp, tq, "", DASH, exit=(0.15, 1), entry=(0.15, 0))
-    d.note("X(L) cannot be removed by design, only measured. Residual language effect = variation in A(L) that survives adjustment for X(L), fertility and translation quality. With five or six languages this is a descriptive quantity; the paired item design supports claims about cells, not about languages in general.", 40, 940, 900, 70)
+    d.note("X(L) cannot be removed by design, only measured. Residual language effect = variation in A(L) that survives adjustment for X(L), fertility and translation quality. With nine languages this is still a descriptive quantity; the paired item design supports claims about cells, not about languages in general.", 40, 940, 900, 70)
     return d
 
 
