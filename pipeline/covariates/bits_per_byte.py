@@ -74,7 +74,7 @@ def main(cfg: DictConfig) -> None:
 
     from datasets import load_dataset
 
-    from src.utils.registry import load_language, load_series
+    from src.utils.registry import load_entry, load_series
 
     print("Pre-flight: GPU job, run on Modal with timeout set; outputs persist via this JSON.")
     series = load_series(cfg.series)
@@ -87,7 +87,7 @@ def main(cfg: DictConfig) -> None:
                 heldout.setdefault(row["language"], []).append(row["text"])
     results: dict[str, Any] = {"series": cfg.series, "models": series["base_models"]}
     for code in codes:
-        entry = load_language(code)
+        entry = load_entry("language", code)
         rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
         texts = [str(row["sentence"]) for row in rows]
         results[code] = {}

@@ -64,13 +64,13 @@ def orthography_report(texts: list[str]) -> dict[str, Any]:
 def main(cfg: DictConfig) -> None:
     from datasets import load_dataset
 
-    from src.utils.registry import load_language, load_series
+    from src.utils.registry import load_entry, load_series
 
     series = load_series(cfg.series)
     codes = list(cfg.languages) if cfg.languages else list(series["languages"])
     results: dict[str, Any] = {"series": cfg.series}
     if "jv" in codes:
-        entry = load_language("jv")
+        entry = load_entry("language", "jv")
         rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
         texts = [str(row["sentence"]) for row in rows]
         labels = [
@@ -82,7 +82,7 @@ def main(cfg: DictConfig) -> None:
         }
         results["jav_register"]["n_items"] = len(texts)
     for code in [c for c in ("min", "ace", "ban", "bjn", "bug") if c in codes]:
-        entry = load_language(code)
+        entry = load_entry("language", code)
         rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
         results[f"{code}_orthography"] = orthography_report([str(r["sentence"]) for r in rows])
     path = write_json(results, cfg.output_dir, "reference_audit.json")

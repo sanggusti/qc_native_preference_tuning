@@ -1,0 +1,41 @@
+# NLLB-200 translation job on Modal (issue #52).
+# Smoke: uv run modal run pipeline/modal_runner/nllb_translate.py \
+#   --mode flores_calibration --language jv --max-rows 20
+# Full:  uv run python -m pipeline.modal_runner.nllb_translate mode=<mode> ...
+
+mode: second_opinion   # flores_calibration | second_opinion | back_translation | eval_split
+source_language: en    # series code; resolved to flores_code via the registry
+target_language: jv    # series code; resolved to flores_code via the registry
+
+# Row source for second_opinion / back_translation / eval_split (exactly one).
+input_dataset: null    # HF id, e.g. sanggusti/gsm8k-en
+input_split: test
+text_column: question
+id_column: id
+input_jsonl: null      # local JSONL rows as an alternative to input_dataset
+
+# Row source for flores_calibration.
+flores_dataset: facebook/flores
+flores_split: devtest
+
+batch_size: 8
+max_rows: null         # set 20 for smoke runs
+remote: true           # false = local stub path (tests only; real work needs the GPU fn)
+
+# Modal function shape (mirrors the decorator constants in nllb_translate.py).
+gpu: A10G               # smallest GPU fitting nllb-200-3.3B in fp16 (~7GB weights)
+timeout: 3600           # covers a full FLORES devtest sweep per language at batch 8
+model_id: facebook/nllb-200-3.3B
+generation_max_tokens: 512
+
+push_to_hub: null      # HF dataset id for the JSONL output; null = local only
+output_dir: data/nllb
+
+wandb:
+  project: qc_native_preference_tuning
+  run_prefix: datagen-nllb
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
