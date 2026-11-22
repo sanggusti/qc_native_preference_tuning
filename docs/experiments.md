@@ -19,9 +19,9 @@ Every series, every paid run and every artifact is recorded here. The planner ou
 | Finetune runs | 15 | 66 |
 | Evaluation runs | 85 | 261 |
 
-Per tier (finetunes / evaluations): tier 0, gsm8k on en, id, jv, su, min with the native, English-anchor and Indonesian-pivot arms, 15 / 85; tier 1, the transparent-backend check on en and id (6 runs on Modal) and the contrast base on gsm8k (15), 21 / 33; tier 2, Acehnese in every lower-tier condition and the pooled model, 9 / 44; tier 3, the second benchmark (medqa as placeholder), 21 / 99.
+Per tier (finetunes / evaluations): tier 0, gsm8k on en, id, jv, su, min with the native, English-anchor and Indonesian-pivot arms, 15 / 85; tier 1, the transparent-backend check on en and id (6 runs on Modal) and the contrast base on gsm8k (15), 21 / 33; tier 2, Acehnese, Balinese, Banjarese and Buginese in every lower-tier condition and the pooled model, 27 / 131; tier 3, the second benchmark (medqa as placeholder), 30 / 156.
 
-Base models (provisional until the Phase 2 floor rule, issue #63): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min (tier 0), ace (tier 2). Benchmarks: gsm8k (tier 0); medqa parked at tier 3 pending issue #62. Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
+Base models (provisional until the Phase 2 floor rule, issue #63): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min (tier 0), ace, ban, bjn, bug (tier 2). Benchmarks: gsm8k (tier 0); medqa parked at tier 3 pending issue #62. Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
 
 ## 3. Ledger
 
@@ -32,7 +32,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 0 | live model catalogue (`client.autoscientist.list_models()`) with per-size cost | | | | |
 | 0 | fertility, characters per item, bits per byte per language and base | | | | |
 | 0 | NusaX identical-content-token share and chrF++ of each regional language against Indonesian (leakage threshold, D2 covariate) | | | | |
-| 0 | register and orthography audit of the FLORES-200 references (jv, min, ace) | | | | |
+| 0 | register and orthography audit of the FLORES-200 references (jv, min, ace, ban, bjn, bug) | | | | |
 | 1 | `language_expansion` probe with `estimate=True` per code | | | | |
 | 1 | FLORES-200 devtest calibration per language (Adaption and NLLB-200 chrF++, QE diagnostics) | about 5,000 rows | | | |
 | 1 | 50-row gsm8k probe per language with the full quality columns | 250 rows | | | |
@@ -58,6 +58,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 
 | Date | Series | Change | Reason | Commit |
 |---|---|---|---|---|
+| 2026-11-22 | s01_language_medium | Admit ban, bjn, bug at tier 2 (S01 grows six to nine languages; full matrix now 45 datasets, 93 finetunes, 405 evals) | maintainer decision: wider low-resource coverage behind the same gate and floor rule | |
 | | | | | |
 
 ## 5. Artifacts

@@ -1,0 +1,18 @@
+code: bjn
+iso_639_3: bjn
+name: Banjarese
+native_name: Bahasa Banjar
+flores_code: bjn_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Malayic
+resource_tier: very_low
+translation_register: standard
+register_notes: >-
+  Banjarese is lexically close to Malay and Indonesian, so translation quality gates
+  must check that outputs are Banjarese rather than lightly modified Indonesian
+  (language identification plus a distinctiveness check), the same failure mode as
+  Minangkabau. The pinned register is standard written Banjarese in Latin script.
+register_instruction: >-
+  Write in standard Banjarese in Latin script as in published prose; do not leave Indonesian sentences or phrases untranslated where a Banjarese form exists.
+nllb_supported: true
+xlmr_covered: false

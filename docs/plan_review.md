@@ -95,7 +95,7 @@ The installed Adaption SDK is 0.10.0; the skills and the legacy pipeline were wr
 | `datasets.publish` | returns 501 | keep `push_to_hub` |
 | `processing_mode="raw"` | upload path that skips server-side augmentation | adopted for finetuning data |
 | Hyperparameters | fifteen fields; `training_type` and `train_on_inputs` are otherwise decided by the platform | pinned in the series file |
-| `language_expansion` | validates ISO 639-1 codes; min and ace have only ISO 639-3 codes | probe with `estimate=True`; blueprint route as the default |
+| `language_expansion` | validates ISO 639-1 codes; min, ace, ban, bjn and bug have only ISO 639-3 codes | probe with `estimate=True`; blueprint route as the default |
 | Inspect `match(numeric=True)` | parses `1.500` as 1.5 and `2,5` as 25 | English numeral formatting enforced by the gate |
 | Inspect `parse_answers` | requires the literal `ANSWER:` marker | kept in every translated instruction |
 

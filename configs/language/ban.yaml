@@ -1,0 +1,17 @@
+code: ban
+iso_639_3: ban
+name: Balinese
+native_name: Basa Bali
+flores_code: ban_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / Bali-Sasak
+resource_tier: very_low
+translation_register: standard
+register_notes: >-
+  Balinese has speech levels (alus for refined or formal address alongside everyday
+  forms). The series pins one standard written register for the whole series; alus
+  variants would be a separate condition, not a drop-in substitute.
+register_instruction: >-
+  Write in standard Latin-script Balinese with its full orthography; do not substitute Indonesian words where a Balinese word exists.
+nllb_supported: true
+xlmr_covered: false

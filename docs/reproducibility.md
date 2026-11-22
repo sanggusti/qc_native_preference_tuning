@@ -26,7 +26,7 @@ Every value that could differ between two experiments lives in a YAML file under
 | `nllb_supported` | NLLB-200 can act as the second translator |
 | `xlmr_covered` | the language is in XLM-R's pretraining set, so encoder-based quality estimation is inside coverage |
 
-Template: `configs/language/_template.yaml`. Entries today: en, id, jv, su, min, ace.
+Template: `configs/language/_template.yaml`. Entries today: en, id, jv, su, min, ace, ban, bjn, bug.
 
 ### 2.2 Benchmarks: `configs/benchmark/{name}.yaml`
 
@@ -65,7 +65,7 @@ uv run python -m pipeline.plan series=s02_adaptive      # another series file
 
 `pipeline/plan.py` loads the series through `src/utils/registry.py`, validates every referenced language, benchmark, base role, condition, tier target and backend, expands the cells, de-duplicates cells that coincide (the English anchor evaluated in English is the native English cell), and prints counts per tier, per backend, per condition, and the command for every dataset, finetune and evaluation. Nothing in the planner submits work. The printed plan is pasted into `docs/experiments.md` before the first paid run of a series.
 
-For series S01 the planner reports 30 datasets (10 translated train and test repositories, 2 English source repositories, 10 round-trip splits, 6 digit re-instantiated splits, 2 pooled training sets), 66 finetunes (60 on the managed backend, 6 on the transparent one) and 261 evaluation runs. Tier 0, gsm8k on en, id, jv, su and min, is 14 datasets, 15 finetunes and 85 evaluations.
+For series S01 the planner reports 45 datasets (16 translated train and test repositories, 2 English source repositories, 16 round-trip splits, 9 digit re-instantiated splits, 2 pooled training sets), 93 finetunes (87 on the managed backend, 6 on the transparent one) and 405 evaluation runs. Tier 0, gsm8k on en, id, jv, su and min, is 14 datasets, 15 finetunes and 85 evaluations.
 
 ## 4. Naming
 

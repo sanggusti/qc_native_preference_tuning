@@ -92,11 +92,15 @@ def test_tiers_compose_over_condition_benchmark_and_language():
     series = load_series("s01_language_medium")
     cells = expand_matrix(series)
     assert all(c["tier"] >= 3 for c in cells if c["benchmark"] == "medqa")
+    parked = {"ace", "ban", "bjn", "bug"}
     assert all(
-        c["tier"] >= 2 for c in cells if "ace" in (c["eval_language"], c["train_language"])
+        c["tier"] >= 2
+        for c in cells
+        if parked & {c["eval_language"], c["train_language"]}
     )
     # a tier 0 condition on a parked language is lifted, not dropped
-    assert any(c["condition"] == "native" and c["eval_language"] == "ace" for c in cells)
+    for lang in parked:
+        assert any(c["condition"] == "native" and c["eval_language"] == lang for c in cells)
 
 
 def test_full_matrix_has_no_duplicate_cells_and_derives_names():

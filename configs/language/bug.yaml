@@ -1,0 +1,18 @@
+code: bug
+iso_639_3: bug
+name: Buginese
+native_name: Basa Ugi
+flores_code: bug_Latn
+script: Latn
+family: Austronesian / Malayo-Polynesian / South Sulawesi
+resource_tier: very_low
+translation_register: standard
+register_notes: >-
+  Buginese is South Sulawesi, genealogically distant from Malayic, and very thinly
+  represented in pretraining corpora. Expect weak LLM translation quality; the
+  translation gate (docs/methodology.md) decides whether the language enters a
+  series or is deferred.
+register_instruction: >-
+  Write in standard Latin-script Buginese with its full orthography; do not substitute Indonesian words where a Buginese word exists.
+nllb_supported: true
+xlmr_covered: false
