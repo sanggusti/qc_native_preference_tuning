@@ -81,7 +81,7 @@ qc_native_preference_tuning/
 ├── pipeline/                  # End-to-end pipeline runners
 │   ├── plan.py                # expands a series into its matrix and commands
 │   ├── datagenerator/         # Dataset translation & enhancement
-│   ├── evals/                 # LitAI evaluation tools
+│   ├── evals/                 # eval sweep runners (serve + run cells)
 │   ├── training/              # finetuning stages (AutoScientist, transparent LoRA on Modal)
 │   └── modal_runner/          # Modal cloud launcher
 ├── src/                       # Core library

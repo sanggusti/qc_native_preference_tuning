@@ -29,4 +29,4 @@ All finetune conditions in a series must share: base models (ids from `client.au
 
 ## Stage skills
 
-Hand off to the stage skill for execution details: `datagen` (Adaption Adaptive Data + HF publish), `finetune` (AutoScientist + wandb + HF), `evaluate` (Inspect AI), `compute` (Modal / Lightning).
+Hand off to the stage skill for execution details: `datagen` (Adaption Adaptive Data + HF publish), `finetune` (AutoScientist + wandb + HF), `evaluate` (Inspect AI), `compute` (Modal).

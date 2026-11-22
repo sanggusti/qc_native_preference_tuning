@@ -6,7 +6,7 @@ Research codebase on the **language of finetuning data** for Indonesian and its 
 
 This is a research repo, not a product. The workflow is tool-driven:
 
-**Adaption** (dataset enhancement + managed finetuning) -> **HuggingFace Hub** (publish datasets/models) -> **Inspect AI** (evals) -> **wandb** (experiment tracking), with compute on **Modal** (GPU: inference, NLLB, and the transparent LoRA backend that checks the managed one) and **Lightning AI** (data processing, evals, hosted inference).
+**Adaption** (dataset enhancement + managed finetuning) -> **HuggingFace Hub** (publish datasets/models) -> **Inspect AI** (evals) -> **wandb** (experiment tracking), with compute on **Modal** (GPU: inference, NLLB, and the transparent LoRA backend that checks the managed one). (Lightning AI is down; never route work to Lightning/litai.)
 
 ## Setup and commands
 
@@ -29,10 +29,9 @@ Use the platform built for the job. Do not hand-roll what a platform already doe
 | Evaluations | Inspect AI tasks | `src/evals/tasks/` |
 | Experiment tracking, run metadata | wandb | wraps every stage |
 | Publishing datasets and models | HF Hub (`push_to_hub`) | after datagen / finetune |
-| GPU compute (inference, custom training) | Modal | `pipeline/modal_runner/` |
-| Data processing, eval compute, hosted LLM inference | Lightning AI (`litai`) | `pipeline/evals/litai_tools.py` |
+| GPU compute (inference, custom training, batch jobs) | Modal | `pipeline/modal_runner/` |
 
-Reuse existing functions before writing new ones. Reference implementations: `pipeline/datagenerator/evals_translate/mgsm_convert.py` (Adaption translate -> preference pairs -> HF push), `src/evals/tasks/multilingual_qa.py` (parameterized Inspect task), `pipeline/evals/litai_tools.py` (litai inference), `pipeline/modal_runner/sample_modal_inference.py` (Modal app + secrets).
+Reuse existing functions before writing new ones. Reference implementations: `pipeline/datagenerator/evals_translate/mgsm_convert.py` (Adaption translate -> preference pairs -> HF push), `src/evals/tasks/multilingual_qa.py` (parameterized Inspect task), `pipeline/modal_runner/sample_modal_inference.py` (Modal app + secrets).
 
 ## Experiment configuration
 
@@ -78,8 +77,6 @@ Adaption runs, AutoScientist training, Modal GPU jobs, and eval sweeps cost mone
 Loaded from `.env` at repo root (via `python-dotenv`; `tests/conftest.py` loads it for tests):
 
 - `ADAPTION_API_KEY` -> Adaption (dataset enhancement, AutoScientist finetuning)
-- `LIGHTNING_API_KEY` -> Lightning AI / litai
-- `LITAI_MODEL` -> default litai model id (e.g. `lightning-ai/gpt-oss-120b`)
 - `HF_TOKEN` -> HuggingFace Hub (datasets, models, repos)
 - `WANDB_API_KEY` -> wandb tracking
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` -> judge/baseline models for Inspect evals
