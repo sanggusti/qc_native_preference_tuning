@@ -9,6 +9,8 @@ domain: null               # math | medical | programming | science | general
 inspect_reference: null    # inspect_evals task this mirrors (e.g. inspect_evals/mgsm)
 scorer: null               # numeric_match | choice | code_exec | exact_match
 scorer_language_agnostic: true
+license: null              # source data license, printed on the dataset card
+instruction_en: null       # English instruction template; translated once per language (| literal block)
 
 eval_source:               # English test items (become the {language} test split)
   hf_repo: null

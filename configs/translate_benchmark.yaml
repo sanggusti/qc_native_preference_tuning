@@ -1,0 +1,16 @@
+# Registry-driven benchmark translation (issue #50).
+#   uv run python -m pipeline.datagenerator.translate_benchmark \
+#     benchmark=gsm8k language=jv series=s01_language_medium push_to_hub=sanggusti/gsm8k-jv
+# Smoke: add max_rows=20 split=test. Full orchestration needs ADAPTION_API_KEY.
+
+defaults:
+  - series: s01_language_medium
+  - benchmark: gsm8k
+  - language: jv
+  - _self_
+
+split: both            # train | test | both
+max_rows: null         # cap per split for smoke runs
+push_to_hub: null      # HF dataset id, e.g. sanggusti/gsm8k-jv; null = local only
+private: false
+output_dir: data/translated

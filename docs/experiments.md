@@ -59,6 +59,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | Date | Series | Change | Reason | Commit |
 |---|---|---|---|---|
 | 2026-11-22 | s01_language_medium | Admit ban, bjn, bug at tier 2 (S01 grows six to nine languages; full matrix now 45 datasets, 93 finetunes, 405 evals) | maintainer decision: wider low-resource coverage behind the same gate and floor rule | |
+| 2026-11-22 | s01_language_medium | Pin sampling_seed 47 for the fixed train subset (was unspecified) | methodology 5.1 requires a fixed seeded subset; first pin, not a change | |
 | | | | | |
 
 ## 5. Artifacts

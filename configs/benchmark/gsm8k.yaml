@@ -3,6 +3,10 @@ domain: math
 inspect_reference: inspect_evals/gsm8k   # data layout; the CoT instruction style follows inspect_evals/mgsm
 scorer: numeric_match
 scorer_language_agnostic: true
+license: MIT  # openai/gsm8k
+instruction_en: |-
+  Solve the following math problem step by step. Show your reasoning, then write the final answer on its own line exactly in this form:
+  ANSWER: <number>
 
 eval_source:
   hf_repo: openai/gsm8k
@@ -34,7 +38,7 @@ translate:
     arithmetic expression, currency symbol and the final answer exactly as written, using
     English number formatting. Keep the same reasoning steps in the same order. Do not add
     explanations. {register_instruction}
-  prompt_template_key: mgsm_cot_instruction   # translated once per language; the final line keeps "Answer:"
+  prompt_template_key: mgsm_cot_instruction   # translated once per language; the final line keeps "ANSWER:"
   variants:                  # eval-only derived splits, see docs/methodology.md
     rt: back-translation of the {language} test split into English by the same translator
     nllb: NLLB-200 translation of the test split, second opinion on translation quality
