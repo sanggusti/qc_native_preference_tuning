@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import sys
+import tarfile
+import tempfile
+import urllib.request
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -11,6 +15,66 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+FLORES_TARBALL_URL = "https://dl.fbaipublicfiles.com/nllb/flores200_dataset.tar.gz"
+
+
+def read_parallel_csv(source: str | Path) -> list[dict[str, str]]:
+    """Read a parallel-sentences CSV from a local path or http(s) URL."""
+    text = str(source)
+    if text.startswith(("http://", "https://")):
+        with urllib.request.urlopen(text) as response:  # noqa: S310 - allowlisted hosts only at call sites
+            content = response.read().decode("utf-8")
+        lines = content.splitlines()
+    else:
+        with open(text, encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+    return [dict(row) for row in csv.DictReader(lines)]
+
+
+def _tarball_member_name(members: list[str], split: str, flores_code: str) -> str:
+    suffix = f"{split}/{flores_code}.{split}"
+    matches = [name for name in members if name.endswith(suffix)]
+    if not matches:
+        raise ValueError(f"tarball has no {suffix}")
+    return matches[0]
+
+
+def flores_from_tarball(tarball: str | Path, split: str, flores_code: str) -> list[str]:
+    """Read aligned sentences for one code from a FLORES-200 tarball file."""
+    with tarfile.open(tarball, "r:gz") as archive:
+        member = _tarball_member_name(archive.getnames(), split, flores_code)
+        handle = archive.extractfile(member)
+        if handle is None:
+            raise ValueError(f"cannot extract {member}")
+        return [line.decode("utf-8").rstrip("\n") for line in handle if line.strip()]
+
+
+def flores_sentences(
+    dataset: str,
+    flores_code: str,
+    split: str,
+    tarball_url: str = FLORES_TARBALL_URL,
+    cache_dir: str | Path | None = None,
+) -> list[str]:
+    """FLORES sentences via the Hub, falling back to the public tarball.
+
+    The facebook/flores Hub repo is gated; when Hub access fails for any
+    reason, download (once, cached) and read the original release tarball.
+    """
+    try:
+        from datasets import load_dataset
+
+        rows = load_dataset(dataset, flores_code, split=split)
+        return [str(row["sentence"]) for row in rows]
+    except Exception as exc:  # noqa: BLE001 - any Hub failure triggers the fallback
+        print(f"Hub FLORES load failed ({exc}); falling back to the release tarball")
+    directory = Path(cache_dir) if cache_dir else Path(tempfile.gettempdir())
+    directory.mkdir(parents=True, exist_ok=True)
+    cached = directory / "flores200_dataset.tar.gz"
+    if not cached.exists():
+        urllib.request.urlretrieve(tarball_url, cached)  # noqa: S310 - fixed release URL
+    return flores_from_tarball(cached, split, flores_code)
 
 
 def write_json(payload: dict[str, Any], output_dir: str | Path, name: str) -> Path:

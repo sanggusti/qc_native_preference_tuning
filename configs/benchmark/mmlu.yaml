@@ -16,27 +16,28 @@ instruction_en: |-
 
 eval_source:
   hf_repo: cais/mmlu
-  config: null               # subject subset chosen per run (57 cais/mmlu configs); verify in smoke
+  config: all                # all 57 subjects; test 14042
   split: test
   fields:
     question: question
-    choices: [A, B, C, D]    # assembled from MMMLU columns; layout kept for record_to_sample_mmmlu
-    answer: Answer           # letter A-D
-    subject: Subject
+    choices: choices         # list of 4 option strings
+    answer: answer           # int index; target letter derived by index
+    subject: subject
 
 train_source:
   hf_repo: cais/mmlu
-  config: null               # subject subset chosen per run; verify in smoke
-  split: auxiliary_train     # pooled across subjects to reach min_rows
+  config: all
+  split: auxiliary_train     # 99842 rows across subjects
   fields:
     question: question
-    choices: [A, B, C, D]
-    answer: Answer
-    subject: Subject
+    choices: choices
+    answer: answer
+    subject: subject
   min_rows: 1000             # satisfied by pooling subjects, never by repeating items
 
 translate:
-  fields: [Question, A, B, C, D]
+  fields: [question, choices]   # translated rows keep the MMMLU column layout
+                                # (Question/A/B/C/D/Answer/Subject)
   preserve:
     - option order and the correct answer letter
     - the Subject column verbatim (never translated)

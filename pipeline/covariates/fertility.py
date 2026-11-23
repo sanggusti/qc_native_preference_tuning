@@ -70,13 +70,15 @@ def _load_tokenizer(model_id: str) -> Tokenizer:
     return AutoTokenizer.from_pretrained(model_id)
 
 
-def _flores_texts(dataset: str, split: str, flores_code: str | None) -> list[str]:
-    from datasets import load_dataset
+def _flores_texts(cfg: Any, flores_code: str | None) -> list[str]:
+    from pipeline.covariates._common import flores_sentences
 
     if flores_code is None:
         raise ValueError("flores_code is null; NusaX fallback is configured per language")
-    rows = load_dataset(dataset, flores_code, split=split)
-    return [str(row["sentence"]) for row in rows]
+    return flores_sentences(
+        cfg.flores_dataset, flores_code, cfg.flores_split,
+        cfg.flores_tarball_url, cfg.output_dir,
+    )
 
 
 @hydra_main(version_base=None, config_path="../../configs/covariates", config_name="covariates")
@@ -89,7 +91,7 @@ def main(cfg: DictConfig) -> None:
     results: dict[str, Any] = {"series": cfg.series, "tokenizers": series["base_models"]}
     for code in codes:
         entry = load_entry("language", code)
-        texts = _flores_texts(cfg.flores_dataset, cfg.flores_split, entry["flores_code"])
+        texts = _flores_texts(cfg, entry["flores_code"])
         results[code] = {
             role: fertility_for_texts(tokenizer, texts)
             for role, tokenizer in tokenizers.items()

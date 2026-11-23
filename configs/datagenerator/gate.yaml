@@ -33,7 +33,12 @@ sentence_min_chars: 20            # length floor for a qualifying sentence
 lid_prob_min: 0.5                 # default; step 0 calibrates so 95% of references pass
 lid_non_target_max_share: 0.2     # fail above 20% non-target qualifying sentences
 lid_reject_codes: [ind_Latn, eng_Latn]
-lid_model_path: null              # FastText GlotLID model; null with lid_stub=true for tests
+lid_model_path: null              # FastText GlotLID model file; download cis-lmu/glotlid
+                                # model_v4_small.ftz (35MB, 99.5% top-label agreement with v4).
+                                # Labels parse as __label__<iso3>_<Script>; bjn/ind are
+                                # verified weak spots (F1 0.935 / precision 0.724), so keep
+                                # elevated thresholds for those codes. Null with lid_stub=true
+                                # for tests.
 lid_stub: false
 refusal_patterns:
   - i cannot translate

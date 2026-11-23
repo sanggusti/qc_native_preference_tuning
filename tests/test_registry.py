@@ -32,7 +32,10 @@ def test_every_benchmark_entry_is_valid():
         assert cfg.scorer_language_agnostic, f"{name}: scorer must not favor a language"
         assert "{language}" in cfg.translate.blueprint
         assert "{register_instruction}" in cfg.translate.blueprint
-        assert cfg.train_source.min_rows >= 1000
+        if cfg.get("eval_only", False):
+            assert cfg.train_source.min_rows == 0, f"{name}: eval-only needs min_rows 0"
+        else:
+            assert cfg.train_source.min_rows >= 1000
 
 
 def test_missing_entry_raises():

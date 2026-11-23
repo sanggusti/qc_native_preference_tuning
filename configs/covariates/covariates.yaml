@@ -8,9 +8,22 @@ output_dir: data/covariates
 
 flores_dataset: facebook/flores
 flores_split: devtest
-nusax_dataset: indonlp/nusax-senti
-nusax_id_column: null      # set after verifying the NusaX schema in the smoke run
-nusax_text_columns: {}     # language code -> column name; set after verifying schema
+nusax_csv_url: https://raw.githubusercontent.com/IndoNLP/nusax/main/datasets/mt/test.csv
+# The indonlp/NusaX-* Hub repos are legacy scripts unloadable under datasets>=4,
+# so similarity reads the published CSVs directly (12 parallel columns, verified).
+nusax_columns:             # series code -> CSV column
+  en: english
+  id: indonesian
+  jv: javanese
+  su: sundanese
+  min: minangkabau
+  ace: acehnese
+  ban: balinese
+  bjn: banjarese
+  bug: buginese
+flores_tarball_url: https://dl.fbaipublicfiles.com/nllb/flores200_dataset.tar.gz
+# Fallback when facebook/flores Hub access is gated; layout verified 2026-11-23:
+# flores200_dataset/{dev,devtest}/{code}.{dev,devtest}, 1012 lines each.
 heldout_items: null        # optional JSONL of project items ({id, language, text}) for BPB pairing
 
 # Seed marker lists for the Javanese register heuristic (reference_audit.py).

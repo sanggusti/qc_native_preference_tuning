@@ -97,20 +97,17 @@ def similarity_for_pair(
 
 @hydra_main(version_base=None, config_path="../../configs/covariates", config_name="covariates")
 def main(cfg: DictConfig) -> None:
-    from datasets import load_dataset
-
+    from pipeline.covariates._common import read_parallel_csv
     from src.utils.registry import load_series
 
-    if not cfg.nusax_id_column or not cfg.nusax_text_columns:
-        raise ValueError("set nusax_id_column and nusax_text_columns after the schema smoke check")
     series = load_series(cfg.series)
     codes = [c for c in (list(cfg.languages) if cfg.languages else list(series["languages"]))]
     codes = [c for c in codes if c != "id"]
-    rows = load_dataset(cfg.nusax_dataset, split="train")
-    id_column = cfg.nusax_text_columns["id"]
-    results: dict[str, Any] = {"series": cfg.series, "dataset": cfg.nusax_dataset}
+    rows = read_parallel_csv(cfg.nusax_csv_url)
+    id_column = cfg.nusax_columns["id"]
+    results: dict[str, Any] = {"series": cfg.series, "dataset": cfg.nusax_csv_url}
     for code in codes:
-        column = cfg.nusax_text_columns[code]
+        column = cfg.nusax_columns[code]
         pairs = [similarity_for_pair(str(r[id_column]), str(r[column])) for r in rows]
         results[code] = {
             "identical_content_token_share": statistics.fmean(p["identical_content_token_share"] for p in pairs),
