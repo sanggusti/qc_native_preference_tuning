@@ -109,11 +109,20 @@ def numeric_match_locale() -> Scorer:
     return score
 
 
-def record_to_sample(record: dict[str, Any], spec: Any = None) -> Sample:
+def record_to_sample(
+    record: dict[str, Any], spec: Any = None, instruction_variant: str = "native"
+) -> Sample:
     """Map one translated row to a Sample, following the benchmark record layout."""
+    if instruction_variant not in ("native", "english_cot"):
+        raise ValueError(f"unknown instruction_variant: {instruction_variant!r}")
     layout = "canonical"
     if spec is not None:
         layout = spec.get("record_layout") or "canonical"
+    if layout not in ("canonical", "mmmlu", "arc", "humaneval"):
+        raise ValueError(f"unknown record_layout: {layout!r}")
+    instruction = (
+        record["instruction_en"] if instruction_variant == "english_cot" else record["instruction"]
+    )
     if layout == "mmmlu":
         return Sample(
             id=str(record["id"]),
@@ -122,7 +131,8 @@ def record_to_sample(record: dict[str, Any], spec: Any = None) -> Sample:
             choices=[str(record[c]) for c in ("A", "B", "C", "D")],
             metadata={
                 "source_id": str(record["id"]),
-                "instruction": record["instruction"],
+                "instruction": instruction,
+        "instruction_variant": instruction_variant,
                 "language": record.get("language"),
                 "subject": record.get("Subject"),
             },
@@ -137,7 +147,8 @@ def record_to_sample(record: dict[str, Any], spec: Any = None) -> Sample:
             choices=[str(text) for text in record["choices"]["text"]],
             metadata={
                 "source_id": str(record["id"]),
-                "instruction": record["instruction"],
+                "instruction": instruction,
+        "instruction_variant": instruction_variant,
                 "language": record.get("language"),
                 "answerKey": record["answerKey"],
             },
@@ -149,18 +160,18 @@ def record_to_sample(record: dict[str, Any], spec: Any = None) -> Sample:
             target=str(record["canonical_solution"]),
             metadata={
                 "source_id": str(record["id"]),
-                "instruction": record["instruction"],
+                "instruction": instruction,
+        "instruction_variant": instruction_variant,
                 "language": record.get("language"),
                 "test": record["test"],
                 "entry_point": record["entry_point"],
                 "canonical_solution": record["canonical_solution"],
             },
         )
-    if layout != "canonical":
-        raise ValueError(f"unknown record_layout: {layout!r}")
     metadata = {
         "source_id": str(record["id"]),
-        "instruction": record["instruction"],
+        "instruction": instruction,
+        "instruction_variant": instruction_variant,
         "language": record.get("language"),
         "question_en": record.get("question_en"),
     }
@@ -226,8 +237,9 @@ def load_translated_dataset(
     split: str,
     limit: int | None,
     spec: Any = None,
+    instruction_variant: str = "native",
 ) -> Dataset:
-    fields = functools.partial(record_to_sample, spec=spec)
+    fields = functools.partial(record_to_sample, spec=spec, instruction_variant=instruction_variant)
     if dataset_path is not None:
         return json_dataset(dataset_path, sample_fields=fields, limit=limit)
     return hf_dataset(path=repo, split=split, sample_fields=fields, limit=limit)
@@ -254,6 +266,7 @@ def translated_benchmark(
     limit: int | None = None,
     repo_template: str = DEFAULT_REPO_TEMPLATE,
     sandbox_timeout: int = 10,
+    instruction_variant: str = "native",
 ) -> Task:
     """Evaluate a model on a translated standard benchmark.
 
@@ -267,11 +280,12 @@ def translated_benchmark(
         limit: cap on samples, for smoke runs.
         repo_template: fallback HF repo id template when dataset_repo is not given.
         sandbox_timeout: per-sample seconds for code_exec sandbox runs.
+        instruction_variant: native instruction or english_cot (English instruction).
     """
     spec = load_entry("benchmark", benchmark)
     load_entry("language", language)
     repo = resolve_repo(benchmark, language, variant, dataset_repo, repo_template)
-    dataset = load_translated_dataset(repo, dataset_path, split, limit, spec)
+    dataset = load_translated_dataset(repo, dataset_path, split, limit, spec, instruction_variant)
     template = instruction_template(dataset)
 
     if spec.scorer == "numeric_match":

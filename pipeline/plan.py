@@ -10,9 +10,11 @@ can be reviewed (and pasted into docs/experiments.md) before any paid run.
 
 from __future__ import annotations
 
+import shlex
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from hydra import main as hydra_main
 from omegaconf import DictConfig
@@ -126,24 +128,34 @@ def render_commands(series: DictConfig, cells: list[dict], stage: str) -> str:
             )
     if stage in ("all", "eval"):
         lines.append("# eval: one Inspect run per cell")
-        provider = series.naming.get("model_provider", "hf")
         for cell in cells:
-            model = f"{provider}/{cell['model']}"  # same harness for base and finetuned cells
-            variant = f" -T variant={cell['eval_variant']}" if cell["eval_variant"] else ""
-            lines.append(
-                "uv run inspect eval src/evals/tasks/translated_benchmark.py "
-                f"--model {model} -T benchmark={cell['benchmark']} "
-                f"-T language={cell['eval_language']}{variant} "
-                f"-T dataset_repo={cell['eval_dataset']} "
-                f"--temperature {series.generation.temperature} "
-                f"--max-tokens {series.generation.max_tokens} "
-                f"--metadata condition={cell['condition']} "
-                f"--metadata train_language={cell['train_language'] or 'none'} "
-                f"--metadata backend={cell['backend'] or 'none'} "
-                f"--metadata base={cell['base_role']} "
-                f"--metadata replicate={cell['replicate']} --metadata series={series.series}"
-            )
+            lines.append("uv run " + shlex.join(eval_argv(series, cell)))
     return "\n".join(lines)
+
+
+def eval_argv(series: DictConfig, cell: dict[str, Any]) -> list[str]:
+    """Executable argv for one eval cell (shared by the planner and run_cells)."""
+    provider = series.naming.get("model_provider", "hf")
+    argv = [
+        "inspect", "eval", "src/evals/tasks/translated_benchmark.py",
+        "--model", f"{provider}/{cell['model']}",  # same harness for base and finetuned cells
+        "-T", f"benchmark={cell['benchmark']}",
+        "-T", f"language={cell['eval_language']}",
+    ]
+    if cell["eval_variant"]:
+        argv += ["-T", f"variant={cell['eval_variant']}"]
+    argv += [
+        "-T", f"dataset_repo={cell['eval_dataset']}",
+        "--temperature", str(series.generation.temperature),
+        "--max-tokens", str(series.generation.max_tokens),
+        "--metadata", f"condition={cell['condition']}",
+        "--metadata", f"train_language={cell['train_language'] or 'none'}",
+        "--metadata", f"backend={cell['backend'] or 'none'}",
+        "--metadata", f"base={cell['base_role']}",
+        "--metadata", f"replicate={cell['replicate']}",
+        "--metadata", f"series={series.series}",
+    ]
+    return argv
 
 
 @hydra_main(version_base=None, config_path="../configs", config_name="plan")
