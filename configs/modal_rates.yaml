@@ -1,0 +1,9 @@
+# Modal spend control. GPU $/hr rates are operator-maintained estimates;
+# verify against modal.com/pricing before relying on them for a large sweep.
+monthly_cap_usd: 200
+spend_ledger: data/modal_spend.json
+rates_usd_per_hour:
+  A10G: 0.60
+  L40S: 0.95
+  A100: 2.00
+  H100: 3.50

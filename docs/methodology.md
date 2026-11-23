@@ -214,7 +214,7 @@ Step 1, hard checks on 100 percent of rows (any failure blocks the row): `struct
 
 Step 2, soft signals on 100 percent of rows, combined into a per-row risk rank from coverage-safe signals only: chrF++ agreement with NLLB-200, the NLLB back-translation scored against the English source, `solvable_bt`, the language-identification confidence and `leak_id`. CometKiwi and MetricX-24 are recorded as diagnostics in every language.
 
-Step 3, an LLM error-span judge on the bottom risk decile plus a 10 percent random sample, with the English source present and few-shot examples in L. The judge triages and explains; it never accepts a row on its own, because multilingual judges overestimate quality in low-resource languages.
+Step 3, an LLM error-span judge on the bottom risk decile plus a 10 percent random sample, with the English source present and few-shot examples in L. The pinned judge is google/gemma-4-12B-it served on Modal (L40S), chosen November 2026 for current multilingual coverage at a servable size; the endpoint URL is recorded per run. The judge triages and explains; it never accepts a row on its own, because multilingual judges overestimate quality in low-resource languages.
 
 Step 4, human review with error-span annotation: 150 items per (benchmark, language) for test splits, drawn as the 50 highest-risk rows plus 100 uniformly random rows whose ids are shared across languages; two native annotators; the agreement statistic is reported. Training splits get 100 random rows plus the bottom 5 percent by risk. The medqa guideline states the borrowing policy: a medical term with no established equivalent in L is kept in Indonesian or Latin and is not an error.
 

@@ -216,6 +216,15 @@ def main() -> None:
         check_backend_slug(cfg.hub_model_id, series["naming"]["backend_slugs"]["sft"])
         gpu = cfg.gpu or sft["gpu"]
         timeout = sft["timeout"]
+        from pipeline.modal_runner.budget import (
+            check_budget,
+            estimate_usd,
+            load_rates,
+            record_spend,
+        )
+
+        rates = load_rates()
+        check_budget(rates, estimate_usd(rates, gpu, timeout))
         print_preflight(bench_name, lang_code, base_role, cfg.replicate, cfg.hub_model_id, gpu, timeout)
         job = {
             "trainer_args": trainer_args,
@@ -228,9 +237,17 @@ def main() -> None:
             "wandb_run": run_name_for(bench_name, lang_code, base_role, cfg.replicate),
             "resolved_config": OmegaConf.to_container(cfg, resolve=True),
         }
+        import time as _time
+
         call = train_lora.spawn(job)
         print(f"Modal function call id: {call.object_id}")
+        started = _time.monotonic()
         result = call.get()
+        record_spend(
+            rates, gpu, _time.monotonic() - started,
+            f"sft-{bench_name}-{lang_code}-{base_role}-r{cfg.replicate}",
+            series["base_models"][base_role],
+        )
         print(f"Pushed to {result['hub_model_url']}; loss {result['train_loss']}")
 
     hydra_main_fn()

@@ -257,6 +257,8 @@ if modal is not None:
         """Modal CLI: uv run modal run pipeline/modal_runner/nllb_translate.py --mode ..."""
         cfg = {
             "mode": mode,
+            "gpu": GPU,
+            "timeout": TIMEOUT_SECONDS,
             "source_language": source_language,
             "target_language": language,
             "input_dataset": input_dataset or None,
@@ -304,11 +306,27 @@ def run_job(cfg: dict[str, Any] | Any, remote: bool) -> Path:
     if remote:
         if modal is None:
             raise RuntimeError("remote=true needs the modal package: uv sync --extra modal")
+        from pipeline.modal_runner.budget import (
+            check_budget,
+            estimate_usd,
+            load_rates,
+            record_spend,
+        )
+
+        rates = load_rates()
+        gpu, timeout = get("gpu"), get("timeout")
+        check_budget(rates, estimate_usd(rates, gpu, timeout))
 
         def translate_batches_fn(
             batches: list[list[str]], src: str, tgt: str
         ) -> list[str]:
-            return translate_batches_remote(batches, src, tgt, get("generation_max_tokens"))
+            import time as _time
+
+            started = _time.monotonic()
+            try:
+                return translate_batches_remote(batches, src, tgt, get("generation_max_tokens"))
+            finally:
+                record_spend(rates, gpu, _time.monotonic() - started, f"nllb-{get('mode')}-{get('target_language')}")
     else:
 
         def translate_batches_fn(
