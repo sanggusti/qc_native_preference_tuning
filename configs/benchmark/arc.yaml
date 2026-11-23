@@ -1,0 +1,48 @@
+name: arc
+domain: science
+inspect_reference: inspect_evals/arc
+scorer: choice
+scorer_language_agnostic: true
+license: CC-BY-SA  # allenai/ai2_arc
+record_layout: arc   # nested choices {label, text} plus answerKey, as in the source
+instruction_en: |-
+  Answer the following multiple choice question. The last line of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of {letters}.
+
+  Question:
+  {question}
+
+  Options:
+  {choices}
+
+eval_source:
+  hf_repo: allenai/ai2_arc
+  config: ARC-Challenge
+  split: test
+  fields:
+    question: question
+    choices: choices           # nested {label: [...], text: [...]}; layout preserved
+    answer: answerKey          # label (A-D); target letter derived by label index
+
+train_source:
+  hf_repo: allenai/ai2_arc
+  config: ARC-Challenge
+  split: train
+  fields:
+    question: question
+    choices: choices
+    answer: answerKey
+  min_rows: 1000
+
+translate:
+  fields: [question, choices]
+  preserve:
+    - option order and the label of the correct option
+    - the nested choices layout ({label, text} columns stay aligned)
+  blueprint: >-
+    Translate the science question and every answer option into {language}.
+    {register_instruction} Keep the options in the same order and do not merge
+    or drop any option. Preserve scientific terms, formulas, and units exactly.
+  prompt_template_key: multiple_choice_instruction
+  variants:
+    rt: back-translation of the {language} test split into English
+    nllb: NLLB-200 translation of the test split, second opinion on translation quality

@@ -158,7 +158,7 @@ generation:                 # eval-time decoding, identical for every cell
   epochs: 1
 
 analysis:                   # pre-registered constants of docs/methodology.md sections 2, 4.1 and 10
-  primary_family: delta_en          # Delta_en(L) for the five non-English languages, Holm per benchmark
+  primary_family: delta_en          # Delta_en(L) for the eight non-English languages, Holm per benchmark
   equivalence_bound_points: 3.0     # TOST bound for Delta_en and Delta_id (issue #64)
   target_mde_points: 5.0            # the replicate rule targets this minimum detectable difference
   floor:                            # Phase 2 base-model selection: untuned accuracy on 250-item subsets

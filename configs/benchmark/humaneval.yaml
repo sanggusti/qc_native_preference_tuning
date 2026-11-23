@@ -1,0 +1,46 @@
+name: humaneval
+domain: programming
+inspect_reference: inspect_evals/humaneval
+scorer: code_exec
+scorer_language_agnostic: true
+license: MIT  # openai/openai_humaneval
+record_layout: humaneval   # prompt plus test, entry_point, canonical_solution in metadata
+instruction_en: |-
+  Complete the Python function below. Output only the completed function code, with no explanations.
+
+eval_source:
+  hf_repo: openai/openai_humaneval
+  config: openai_humaneval
+  split: test                # 164 items
+  fields:
+    prompt: prompt           # signature plus docstring; only the docstring is translated
+    test: test               # never translated
+    entry_point: entry_point # never translated
+    canonical_solution: canonical_solution   # never translated; scorer reference
+
+train_source:
+  hf_repo: openai/openai_humaneval
+  config: openai_humaneval
+  split: test                # HumanEval has no train split; finetuning uses MBPP or is eval-only
+  fields:
+    prompt: prompt
+    test: test
+    entry_point: entry_point
+    canonical_solution: canonical_solution
+  min_rows: 1000             # not satisfiable from HumanEval alone; see note above
+
+translate:
+  fields: [prompt]
+  preserve:
+    - all code: signatures, bodies, variable names, tests, entry points
+    - only the natural-language docstring inside prompt is translated
+  blueprint: >-
+    Translate the natural language prompt into {language}.
+    {register_instruction} Translate ONLY the docstring prose. Keep all code
+    blocks, function signatures, variable names, tests and entry points
+    byte-identical. If the docstring cannot be translated without touching code,
+    leave the item untranslated rather than corrupting it.
+  prompt_template_key: code_completion_instruction
+  variants:
+    rt: not applicable (code is language-agnostic; docstring round-trip is diagnostic only)
+    nllb: NLLB-200 docstring translation, second opinion on translation quality

@@ -15,13 +15,15 @@ Every series, every paid run and every artifact is recorded here. The planner ou
 
 | Quantity | Tier 0 | Full series |
 |---|---|---|
-| Datasets (translated and derived) | 14 | 30 |
-| Finetune runs | 15 | 66 |
-| Evaluation runs | 85 | 261 |
+| Datasets (translated and derived) | 14 | 45 |
+| Finetune runs | 15 | 93 |
+| Evaluation runs | 85 | 405 |
 
 Per tier (finetunes / evaluations): tier 0, gsm8k on en, id, jv, su, min with the native, English-anchor and Indonesian-pivot arms, 15 / 85; tier 1, the transparent-backend check on en and id (6 runs on Modal) and the contrast base on gsm8k (15), 21 / 33; tier 2, Acehnese, Balinese, Banjarese and Buginese in every lower-tier condition and the pooled model, 27 / 131; tier 3, the second benchmark (medqa as placeholder), 30 / 156.
 
 Base models (provisional until the Phase 2 floor rule, issue #63): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min (tier 0), ace, ban, bjn, bug (tier 2). Benchmarks: gsm8k (tier 0); medqa parked at tier 3 pending issue #62. Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
+
+s01_extended (S01 constants plus arc, mmlu, humaneval at tier 3; issue #57): 99 datasets, 183 finetunes, 873 evals; tiers 0-2 unchanged (15/85, 21/33, 27/131).
 
 ## 3. Ledger
 
@@ -86,7 +88,7 @@ Tracked as follow-up issues; the planner prints these entry points.
 | `pipeline/training/sft_finetune.py` | Phase 5 | not started (#61) |
 | `pipeline/datagenerator/pool_benchmark.py` | Phase 6 | not started (#53) |
 | `src/analysis/` | Phase 4 | not started (#56; equivalence test #64) |
-| `src/evals/tasks/translated_benchmark.py` | Phase 2 | implemented; execution scoring for code benchmarks pending (#57) |
+| `src/evals/tasks/translated_benchmark.py` | Phase 2 | implemented incl. code_exec sandbox scoring and arc/mmlu/humaneval layouts (#57) |
 
 Decisions pending, each recorded as an amendment when made: the second benchmark (#62, Phase 2) and the base model size against the floor rule (#63, Phase 2). Execution of Phases 0 to 2 is #59; the human review kit is #58.
 
