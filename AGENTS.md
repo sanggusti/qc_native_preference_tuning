@@ -27,7 +27,7 @@ Use the platform built for the job. Do not hand-roll what a platform already doe
 | Finetuning (managed SFT loop, the default backend) | Adaption AutoScientist (`client.autoscientist`) | `pipeline/training/autoscientist_finetune.py` |
 | Finetuning (transparent backend `sft`: plain LoRA with fixed seeds, the platform-independence check) | Modal with peft and trl | `pipeline/training/sft_finetune.py` |
 | Evaluations | Inspect AI tasks | `src/evals/tasks/` |
-| Experiment tracking, run metadata | wandb | wraps every stage |
+| Experiment tracking, run metadata, lineage | wandb + Weave (`src/utils/tracking.py`) | wraps every stage |
 | Publishing datasets and models | HF Hub (`push_to_hub`) | after datagen / finetune |
 | GPU compute (inference, custom training, batch jobs) | Modal | `pipeline/modal_runner/` |
 

@@ -141,15 +141,37 @@ def run_name_for(cell: dict[str, Any]) -> str:
 def maybe_log_wandb(
     project: str, run_name: str, tags: list[str], config: Any, metrics: dict[str, Any]
 ) -> None:
-    """Log one cell to wandb; warn and continue when wandb is not installed."""
-    try:
-        import wandb
-    except ImportError:
-        print("wandb not installed; skipping run logging (Inspect log still kept)")
-        return
-    run = wandb.init(project=project, name=run_name, tags=tags, config=dict(config))
-    run.log(metrics)
-    run.finish()
+    """Log one cell via the shared tracking module (graceful when offline)."""
+    from src.utils.tracking import finish, init_run, log_call, log_metrics
+
+    handle = init_run(project, run_name, tags, config)
+    log_metrics(handle, metrics)
+    log_call(handle, run_name, {"config": config}, metrics)
+    finish(handle)
+
+
+def samples_table(export: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    """Per-sample rows as (columns, data) for a wandb Table."""
+    columns = ["source_id", "scores", "chars", "words", "cap_hit_approx", "lid_label"]
+    rows = [
+        [
+            sample.get("source_id"),
+            json_dumps(sample.get("scores", {})),
+            sample.get("completion_chars"),
+            sample.get("completion_words"),
+            sample.get("cap_hit_approx"),
+            sample.get("lid_label"),
+        ]
+        for sample in export.get("samples", [])
+    ]
+    return columns, rows
+
+
+def json_dumps(value: Any) -> str:
+    """Compact JSON for table cells (local import keeps collection light)."""
+    import json
+
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
 def run_command(argv: list[str]) -> str:

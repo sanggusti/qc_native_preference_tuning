@@ -30,7 +30,7 @@ run = client.autoscientist.create(
     target_win_rate=cfg.target_win_rate,  # default 0.7 small / 0.8 large models
     augmentation_domain_rows=cfg.augmentation_domain_rows,
     augmentation_general_rows=cfg.augmentation_general_rows,
-    idempotency_key=f"{domain}-{language}-{series}",  # safe retries while in progress
+    idempotency_key=f"{series}-{benchmark}-{language}-{base}-r{replicate}",  # fresh per replicate
 )
 # 3. Monitor (default timeout 4h; raises TrainingTimeout but run continues server-side)
 run = client.autoscientist.wait_for_completion(run.id)
@@ -52,5 +52,5 @@ All conditions in a series share base model, `max_iterations`, `target_win_rate`
 ## Publish + track
 
 - Push the downloaded checkpoint to HF under the name the planner derived from `naming.hf_model` (e.g. `sanggusti/gsm8k-jv-s01_language_medium-gemma3-4b-r1`; `-sft` slug for the transparent backend), with `HF_TOKEN`. Never compose the name by hand.
-- AutoScientist has no wandb hook; log client-side: wandb run per the series naming in `configs/series/*.yaml`, project `qc_native_preference_tuning`, config = create() args + resolved run fields (`model`, `max_iterations`, `target_win_rate`, `best_hyperparams`, `iterations_completed`), metrics = `best_win_rate`, plus HF model URL and `run.id`. The run object has no per-iteration loss or learning-rate history.
+- AutoScientist has no wandb hook; log client-side via `src/utils/tracking.py` (wandb run + Weave call, see `docs/tracking.md`): wandb run per the series naming in `configs/series/*.yaml`, project `qc_native_preference_tuning`, config = create() args + resolved run fields (`model`, `max_iterations`, `target_win_rate`, `best_hyperparams`, `iterations_completed`), metrics = `best_win_rate`, plus HF model URL and `run.id`. The run object has no per-iteration loss or learning-rate history.
 - Pre-flight (AGENTS.md) before creating a run; runs cost credits and hours.

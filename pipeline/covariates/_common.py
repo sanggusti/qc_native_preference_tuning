@@ -24,12 +24,17 @@ def write_json(payload: dict[str, Any], output_dir: str | Path, name: str) -> Pa
 
 
 def maybe_log_wandb(project: str, run_name: str, config: Any, payload: dict[str, Any]) -> None:
-    """Log payload to wandb; warn and continue when wandb is not installed."""
-    try:
-        import wandb
-    except ImportError:
-        print("wandb not installed; skipping run logging (JSON output still written)")
-        return
-    run = wandb.init(project=project, name=run_name, config=dict(config))
-    run.log(payload)
-    run.finish()
+    """Log payload via the shared tracking module (graceful when offline)."""
+    from src.utils.tracking import finish, init_run, log_metrics
+
+    handle = init_run(project, run_name, config=config)
+    log_metrics(handle, payload)
+    log_call_safe(handle, run_name, {"config": config}, payload)
+    finish(handle)
+
+
+def log_call_safe(handle: dict[str, Any], name: str, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
+    """Best-effort Weave lineage call (import-local to keep collection light)."""
+    from src.utils.tracking import log_call
+
+    log_call(handle, name, inputs, outputs)

@@ -14,7 +14,7 @@ Tasks live in `src/evals/tasks/`. The primary task is `translated_benchmark.py`:
 def multilingual_qa(dataset_path=None, language="id", domain="general") -> Task:
     return Task(
         dataset=json_dataset(dataset_path, sample_fields={"input": "question", "target": "answer"}),
-        # or: from inspect_ai.dataset import hf_dataset -> hf_dataset(f"sanggusti/{domain}-qa-{language}", ...)
+        # or: from inspect_ai.dataset import hf_dataset -> hf_dataset(f"sanggusti/{benchmark}-{language}", ...)
         solver=[generate()],
         scorer=model_graded_qa(),
         metadata={"domain": domain, "language": language},
@@ -40,7 +40,7 @@ uv run inspect eval src/evals/tasks/multilingual_qa.py \
 
 - `--run-config` bundles task + model + generation settings in one file. `--model-role grader=...` / task `model_roles` pin the judge model separately from the model under eval.
 - Logs land in `logs/inspect/` (`minimal_config.yaml` convention; set `INSPECT_LOG_DIR` or `--log-dir`). Inspect with `uv run inspect view`.
-- Finetuned checkpoints: eval HF models via `--model hf/sanggusti/{domain}-{language}-finetuned` (needs `[training]` extra + GPU; use the `compute` skill to run on Modal) or serve them and use an OpenAI-compatible endpoint.
+- Finetuned checkpoints: serve them on Modal (see the `compute` skill) and eval via the OpenAI-compatible endpoint (`--model openai-api/...`), or eval HF models directly via `--model hf/sanggusti/...` (needs `[training]` extra + GPU).
 
 ## Judging (primary metric = pairwise win rate)
 
@@ -51,4 +51,4 @@ uv run inspect eval src/evals/tasks/multilingual_qa.py \
 
 ## Results -> wandb
 
-Read scores from the eval log (`inspect_ai.log.read_eval_log(path)` or `inspect_ai.analysis` dataframes) and log to wandb: project `qc_native_preference_tuning`, run `eval-{domain}-{language}`, tags include the finetune condition; log accuracy/win-rate plus the log file path and HF model/dataset URLs.
+Read scores from the eval log and log via `src/utils/tracking.py` (wandb run + samples Table + Weave call, see `docs/tracking.md`): project `qc_native_preference_tuning`, run `eval-{benchmark}-{language}-{condition}-{base}-r{replicate}`, tags include benchmark, language, condition, base role; log accuracy plus the log file path and HF model/dataset URLs.

@@ -171,15 +171,13 @@ def push_jsonl(path: Path, repo_id: str) -> str:
 
 
 def maybe_log_wandb(project: str, run_name: str, config: Any, row_count: int) -> None:
-    """Log the run to wandb; warn and continue when wandb is not installed."""
-    try:
-        import wandb
-    except ImportError:
-        print("wandb not installed; skipping run logging (JSONL output still written)")
-        return
-    run = wandb.init(project=project, name=run_name, config=dict(config))
-    run.log({"row_count": row_count})
-    run.finish()
+    """Log the run via the shared tracking module (graceful when offline)."""
+    from src.utils.tracking import finish, init_run, log_call, log_metrics
+
+    handle = init_run(project, run_name, config=config)
+    log_metrics(handle, {"row_count": row_count})
+    log_call(handle, run_name, {"config": config}, {"row_count": row_count})
+    finish(handle)
 
 
 if modal is not None:
