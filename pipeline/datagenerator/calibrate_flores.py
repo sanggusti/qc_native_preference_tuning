@@ -20,10 +20,11 @@ from pipeline.datagenerator.translate_benchmark import (  # noqa: E402
     build_run_kwargs,
     check_run_succeeded,
     download_rows,
-    map_adapted_row,
+    index_by_id,
     maybe_log_wandb,
     print_preflight,
     probe_language_expansion,
+    require_ids,
     verify_row_survival,
     wait_until_ready,
     write_upload_file,
@@ -42,8 +43,12 @@ def calibration_key(language: str, max_rows: int | None) -> str:
 
 
 def build_upload_rows(texts: list[str]) -> list[dict[str, str]]:
-    """Upload rows; completion echoes the source (quality is read off the prompt)."""
-    return [{"question": text, "answer": text} for text in texts]
+    """Upload rows with stable ids; completion echoes the source (translated text
+    is read off enhanced_completion, quality off the prompt column)."""
+    return [
+        {"id": f"eng_Latn:devtest:{position:04d}", "question": text, "answer": text}
+        for position, text in enumerate(texts)
+    ]
 
 
 def main() -> None:
@@ -91,14 +96,17 @@ def main() -> None:
             check_run_succeeded(client.datasets.wait_for_completion(dataset_id, timeout=7200))
             downloaded = download_rows(client, dataset_id)
             verify_row_survival(len(downloaded), len(upload))
-            outputs = []
-            for position, adapted in enumerate(downloaded):
-                prompt, _ = map_adapted_row(adapted)
-                outputs.append({
-                    "source_id": f"eng_Latn:devtest:{position:04d}",
-                    "source_text": texts[position],
-                    "translated_text": prompt,
-                })
+            by_id = index_by_id(downloaded)
+            require_ids(by_id, expected=[row["id"] for row in upload])
+            source_by_id = {row["id"]: row["question"] for row in upload}
+            outputs = [
+                {
+                    "source_id": row["id"],
+                    "source_text": source_by_id[row["id"]],
+                    "translated_text": by_id[row["id"]],
+                }
+                for row in upload
+            ]
             path = write_json(
                 {
                     "language": lang_code,

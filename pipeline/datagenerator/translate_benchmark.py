@@ -89,6 +89,9 @@ def build_run_kwargs(
         "job_specification": job_specification,
         "brand_controls": brand_controls,
         "training_type": "instruction_dataset",
+        # Explicit null clears any expansion config (probe calls persist
+        # theirs); verified live after a poisoned smoke run.
+        "language_expansion": None,
     }
 
 
@@ -145,14 +148,32 @@ def check_run_succeeded(result: Any) -> None:
         raise RuntimeError(getattr(error, "message", str(error)))
 
 
-def map_adapted_row(row: dict[str, Any]) -> tuple[str, str]:
-    """Map enhanced_prompt/enhanced_completion; raise on any other layout."""
-    if "enhanced_prompt" in row and "enhanced_completion" in row:
-        return str(row["enhanced_prompt"]), str(row["enhanced_completion"])
-    raise KeyError(
-        "adapted row lacks enhanced_prompt/enhanced_completion; "
-        f"got {sorted(row)}, refusing to fall back to English text"
-    )
+def translated_completion(row: dict[str, Any]) -> str:
+    """Read the translated prompt column; raise when missing or null.
+
+    Verified live: each run translates the mapped prompt column into
+    enhanced_completion only (enhanced_prompt stays null with recipes off).
+    """
+    text = row.get("enhanced_completion")
+    if text is None:
+        raise KeyError(
+            "adapted row lacks a translated enhanced_completion; "
+            f"got {sorted(row)}, refusing to fall back to English text"
+        )
+    return str(text)
+
+
+def index_by_id(rows: list[dict[str, Any]], id_key: str = "id") -> dict[str, str]:
+    """Index translated completions by upload id (download order is unstable)."""
+    return {str(row[id_key]): translated_completion(row) for row in rows}
+
+
+def require_ids(*maps: dict[str, str], expected: list[str]) -> None:
+    """Fail loudly when any expected id lacks a translation in any map."""
+    for position, mapping in enumerate(maps):
+        missing = [source_id for source_id in expected if source_id not in mapping]
+        if missing:
+            raise ValueError(f"run {position} is missing translations for {missing[:5]}")
 
 
 def verify_row_survival(downloaded: int, uploaded: int) -> None:
@@ -172,15 +193,13 @@ def verify_instruction(text: str, scorer: str) -> None:
         raise ValueError(f"translated instruction lost {missing}")
 
 
-def split_instruction_row(
-    rows: list[dict[str, Any]], scorer: str
-) -> tuple[str, list[dict[str, Any]]]:
-    """Extract the translated instruction (first row) and return (instruction, rest)."""
-    if not rows:
-        raise ValueError("empty download; cannot extract the instruction row")
-    prompt, _ = map_adapted_row(rows[0])
-    verify_instruction(prompt, scorer)
-    return prompt, rows[1:]
+def instruction_text(indexed: dict[str, str], scorer: str) -> str:
+    """Extract and verify the translated instruction by its reserved id."""
+    if INSTRUCTION_ROW_ID not in indexed:
+        raise ValueError("download lacks the instruction row; re-run")
+    text = indexed[INSTRUCTION_ROW_ID]
+    verify_instruction(text, scorer)
+    return text
 
 
 def translator_version() -> str:
@@ -334,7 +353,6 @@ def main() -> None:
         load_dotenv(PROJECT_ROOT / ".env", override=False)
         client = Adaption()
         translation = series["translation"]
-        column_mapping = {"prompt": "question", "completion": "answer"}
         run_ids: dict[str, str] = {}
         pushed: dict[str, Any] = {}
         for split in splits:
@@ -348,15 +366,21 @@ def main() -> None:
                 )
             if cfg.max_rows is not None:
                 indices = list(indices)[: cfg.max_rows]
-            upload = [
-                {"question": entry["instruction_en"], "answer": entry["instruction_en"]}
-            ] + [
-                {
-                    "question": str(rows[i][fields["question"]]),
-                    "answer": _completion_source_text(rows[i], fields, entry["scorer"]),
-                }
-                for i in indices
-            ]
+            items: list[dict[str, Any]] = []
+            for i in indices:
+                source_row = dict(rows[i])
+                source_id = source_id_for(bench_name, split, source_row, i)
+                items.append({
+                    "source_id": source_id,
+                    "question": str(source_row[fields["question"]]),
+                    "answer": _completion_source_text(source_row, fields, entry["scorer"]),
+                    "source_row": source_row,
+                })
+            upload = [{"id": INSTRUCTION_ROW_ID, "question": entry["instruction_en"], "answer": entry["instruction_en"]}]
+            upload += [
+                        {"id": item["source_id"], "question": item["question"], "answer": item["answer"]}
+                        for item in items
+                    ]
             upload_path = write_upload_file(upload)
             try:
                 dataset_id = client.datasets.upload_file(
@@ -364,24 +388,37 @@ def main() -> None:
                 ).dataset_id
                 wait_until_ready(client, dataset_id)
                 scope = cfg.max_rows if cfg.max_rows is not None else "full"
-                key = f"{bench_name}-{lang_code}-{split}-rows{scope}"
-                kwargs = build_run_kwargs(translation, blueprint, column_mapping, cfg.max_rows, key)
-                estimate = client.datasets.run(dataset_id, **kwargs, estimate=True)
-                print_preflight(
-                    bench_name, lang_code, series_name, split, cfg.max_rows, cfg.push_to_hub, estimate
-                )
-                check_run_succeeded(client.datasets.run(dataset_id, **kwargs))
-                check_run_succeeded(
-                    client.datasets.wait_for_completion(dataset_id, timeout=7200)
-                )
-                downloaded = download_rows(client, dataset_id)
-                verify_row_survival(len(downloaded), len(upload))
-                instruction, data_rows = split_instruction_row(downloaded, entry["scorer"])
+                translated_columns: dict[str, dict[str, str]] = {}
+                for column in ("question", "answer"):
+                    key = f"{bench_name}-{lang_code}-{split}-{column}-rows{scope}"
+                    kwargs = build_run_kwargs(
+                        translation, blueprint, {"prompt": column, "completion": column},
+                        cfg.max_rows, key,
+                    )
+                    estimate = client.datasets.run(dataset_id, **kwargs, estimate=True)
+                    if column == "question":
+                        print_preflight(
+                            bench_name, lang_code, series_name, split,
+                            cfg.max_rows, cfg.push_to_hub, estimate,
+                        )
+                    else:
+                        print(f"estimate [{column}]: {estimate}")
+                    check_run_succeeded(client.datasets.run(dataset_id, **kwargs))
+                    check_run_succeeded(
+                        client.datasets.wait_for_completion(dataset_id, timeout=7200)
+                    )
+                    downloaded = download_rows(client, dataset_id)
+                    verify_row_survival(len(downloaded), len(upload))
+                    translated_columns[column] = index_by_id(downloaded)
+                require_ids(translated_columns["question"], translated_columns["answer"],
+                            [item["source_id"] for item in items] + [INSTRUCTION_ROW_ID])
+                instruction = instruction_text(translated_columns["question"], entry["scorer"])
                 canonical = []
-                for position, adapted in enumerate(data_rows):
-                    prompt, completion = map_adapted_row(adapted)
-                    source_row = dict(rows[indices[position]])
-                    source_id = source_id_for(bench_name, split, source_row, indices[position])
+                for item in items:
+                    source_id = item["source_id"]
+                    source_row = item["source_row"]
+                    prompt = translated_columns["question"][source_id]
+                    completion = translated_columns["answer"][source_id]
                     answer_value = source_row[fields["answer"]]
                     answer_list = (
                         [str(a) for a in answer_value]
@@ -434,7 +471,7 @@ def main() -> None:
                         )
                     )
                 pushed[split] = canonical
-                run_ids[split] = dataset_id
+                run_ids[split] = {"dataset_id": dataset_id, "columns": ["question", "answer"]}
             finally:
                 Path(upload_path).unlink(missing_ok=True)
         if cfg.push_to_hub:
