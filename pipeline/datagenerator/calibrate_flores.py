@@ -58,6 +58,9 @@ def main() -> None:
         series = cfg.series
         language = cfg.language
         lang_code = language["code"]
+        from dotenv import load_dotenv
+
+        load_dotenv(PROJECT_ROOT / ".env", override=False)
         client = Adaption()
         translation = series["translation"]
         column_mapping = {"prompt": "question", "completion": "answer"}
