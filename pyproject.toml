@@ -20,6 +20,8 @@ dependencies = [
     "scipy>=1.15.3",
     "statsmodels>=0.15.0",
     "matplotlib>=3.10.9",
+    "wandb>=0.29.0",
+    "weave>=0.54.1",
 ]
 
 [project.optional-dependencies]

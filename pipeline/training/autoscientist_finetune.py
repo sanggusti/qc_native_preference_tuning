@@ -196,15 +196,13 @@ def push_artifact(path: Path, hub_model_id: str, private: bool, upload_fn: Any |
 def maybe_log_wandb(
     project: str, run_name: str, tags: list[str], config: Any, metrics: dict[str, Any]
 ) -> None:
-    """Log the run to wandb; warn and continue when wandb is not installed."""
-    try:
-        import wandb
-    except ImportError:
-        print("wandb not installed; skipping run logging (Hub push still done)")
-        return
-    run = wandb.init(project=project, name=run_name, tags=tags, config=dict(config))
-    run.log(metrics)
-    run.finish()
+    """Log the run via the shared tracking module (graceful when offline)."""
+    from src.utils.tracking import finish, init_run, log_call, log_metrics
+
+    handle = init_run(project, run_name, tags, config)
+    log_metrics(handle, metrics)
+    log_call(handle, run_name, {"config": config}, metrics)
+    finish(handle)
 
 
 def ensure_raw_dataset(
