@@ -1,0 +1,19 @@
+# Pinned AutoScientist finetuning (issue #54). Command shape matches the planner:
+#   uv run python -m pipeline.training.autoscientist_finetune series=... benchmark=... \
+#     base=... language=... replicate=... hub_model_id=...
+# Smoke (stops after recommend_hyperparams, no create): add smoke=true.
+
+defaults:
+  - series: s01_language_medium
+  - benchmark: gsm8k
+  - language: jv
+  - _self_
+
+base: primary          # base role in series base_models
+replicate: 1
+hub_model_id: null     # required; planner resolves from the series naming
+train_dataset_id: null # existing raw Adaption dataset; null = upload from the Hub repo
+condition: null        # for wandb tags only; train identity is benchmark/language/base/replicate
+smoke: false
+private: false
+output_dir: data/finetune
