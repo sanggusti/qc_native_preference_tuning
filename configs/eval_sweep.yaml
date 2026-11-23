@@ -1,0 +1,27 @@
+# Eval sweep: smoke-gate every cell, run it, log it (issue #55).
+# Dry run (prints the sweep, runs nothing):
+#   uv run python -m pipeline.evals.run_cells series=s01_language_medium filter.tier=0 dry_run=true
+# Live runs need deployed Modal servers (serve_modal.py) plus gate approval.
+
+defaults:
+  - series: s01_language_medium
+  - _self_
+
+filter:
+  tier: null
+  benchmark: null
+  language: null
+  condition: null
+  base: null
+
+smoke_limit: 20
+dry_run: true             # flip to false only with gate approval for live runs
+serve: false              # spawn Modal servers (needs the modal package + approval)
+gpu: A10G
+timeout: 7200
+output_dir: logs
+endpoints_json: null      # {model_ref: {base_url, served_name}}; null = single base_url
+base_url: null            # single endpoint default when endpoints_json is null
+
+wandb:
+  project: qc_native_preference_tuning
