@@ -1,0 +1,22 @@
+# Transparent LoRA SFT backend on Modal (issue #61, sft_check condition).
+# Same override schema as the AutoScientist stage; the planner prints:
+#   uv run python -m pipeline.training.sft_finetune series=... benchmark=... \
+#     base=... language=... replicate=... hub_model_id=...
+# Smoke: add max_rows=50 epochs=1 (small GPU still applies; see gpu override).
+# Refuses to run while series autoscientist.hyperparams is null (pinned Phase 4).
+
+defaults:
+  - series: s01_language_medium
+  - benchmark: gsm8k
+  - language: en
+  - _self_
+
+base: primary          # base role in series base_models
+replicate: 1
+hub_model_id: null     # required; carries the -sft backend slug
+condition: null        # for wandb tags only
+max_rows: null         # cap train rows for smoke runs (50)
+epochs: null           # override pinned n_epochs for smoke runs (1)
+gpu: null              # override series sft.gpu when set
+private: false
+output_dir: data/sft
