@@ -226,3 +226,6 @@ data/
 .claude/skills/metr-*
 # draw.io viewer vendored by docs/diagrams/render.py
 docs/diagrams/viewer-static.min.js
+
+# wandb local runs
+wandb/
