@@ -1,0 +1,16 @@
+# Pooled-mixture pseudo-entry, not a language. Exists so Hydra group overrides
+# (language=all, printed by the planner for pooled finetune jobs) resolve, and so
+# pooled cells validate. Never listed in a series languages list; never translated.
+code: all
+iso_639_3: mul
+name: pooled mixture
+native_name: null
+flores_code: null
+script: Latn
+family: null
+resource_tier: mixed
+translation_register: mixed
+register_notes: Pooled rows keep their own per-row registers; there is no single register.
+register_instruction: Translate each row in its own register.
+nllb_supported: false
+xlmr_covered: false
