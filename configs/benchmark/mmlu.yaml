@@ -1,0 +1,51 @@
+name: mmlu
+domain: general
+inspect_reference: inspect_evals/mmlu
+scorer: choice
+scorer_language_agnostic: true
+license: MIT  # cais/mmlu
+record_layout: mmmlu   # MMMLU column layout (Question/A/B/C/D/Answer/Subject)
+instruction_en: |-
+  Answer the following multiple choice question. The last line of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of {letters}.
+
+  Question:
+  {question}
+
+  Options:
+  {choices}
+
+eval_source:
+  hf_repo: cais/mmlu
+  config: null               # subject subset chosen per run (57 cais/mmlu configs); verify in smoke
+  split: test
+  fields:
+    question: question
+    choices: [A, B, C, D]    # assembled from MMMLU columns; layout kept for record_to_sample_mmmlu
+    answer: Answer           # letter A-D
+    subject: Subject
+
+train_source:
+  hf_repo: cais/mmlu
+  config: null               # subject subset chosen per run; verify in smoke
+  split: auxiliary_train     # pooled across subjects to reach min_rows
+  fields:
+    question: question
+    choices: [A, B, C, D]
+    answer: Answer
+    subject: Subject
+  min_rows: 1000             # satisfied by pooling subjects, never by repeating items
+
+translate:
+  fields: [Question, A, B, C, D]
+  preserve:
+    - option order and the correct answer letter
+    - the Subject column verbatim (never translated)
+    - factual content and proper nouns
+  blueprint: >-
+    Translate the question and the four answer options into {language}.
+    {register_instruction} Keep the options in the same order. Preserve factual
+    content and proper nouns. Do not reveal or change the correct answer.
+  prompt_template_key: multiple_choice_instruction
+  variants:
+    rt: back-translation of the {language} test split into English
+    nllb: NLLB-200 translation of the test split, second opinion on translation quality

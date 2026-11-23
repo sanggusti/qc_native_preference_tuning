@@ -25,10 +25,20 @@ protocol, English number formatting) and with `numeric_match_locale`, which firs
 Indonesian-style numerals (1.500 for 1500, 2,5 for 2.5) so that an untuned base model
 answering in the local convention is not scored wrong for a formatting reason. Both scores
 land in the log; docs/methodology.md says which is primary.
+
+Benchmarks whose translated rows keep a source-near layout declare record_layout in
+their registry entry and are mapped by record_to_sample: mmmlu (MMMLU columns),
+arc (nested choices plus answerKey), humaneval (prompt plus test, entry_point and
+canonical_solution in metadata). Code tasks score with code_exec_verify, which runs
+completion plus test in the Inspect sandbox (Docker); inspect_evals is not a
+dependency (it needs Python 3.11 and this repo pins 3.10), so the small verify
+scorer lives here instead of being reused from that package.
 """
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import re
 import sys
 from pathlib import Path
@@ -50,6 +60,7 @@ from inspect_ai.scorer import (
 )
 from inspect_ai.scorer._common import match_str
 from inspect_ai.solver import TaskState, generate, multiple_choice, prompt_template
+from inspect_ai.util import sandbox
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
@@ -98,7 +109,55 @@ def numeric_match_locale() -> Scorer:
     return score
 
 
-def record_to_sample(record: dict[str, Any]) -> Sample:
+def record_to_sample(record: dict[str, Any], spec: Any = None) -> Sample:
+    """Map one translated row to a Sample, following the benchmark record layout."""
+    layout = "canonical"
+    if spec is not None:
+        layout = spec.get("record_layout") or "canonical"
+    if layout == "mmmlu":
+        return Sample(
+            id=str(record["id"]),
+            input=str(record["Question"]),
+            target=str(record["Answer"]),
+            choices=[str(record[c]) for c in ("A", "B", "C", "D")],
+            metadata={
+                "source_id": str(record["id"]),
+                "instruction": record["instruction"],
+                "language": record.get("language"),
+                "subject": record.get("Subject"),
+            },
+        )
+    if layout == "arc":
+        labels = list(record["choices"]["label"])
+        target = chr(ord("A") + labels.index(record["answerKey"]))
+        return Sample(
+            id=str(record["id"]),
+            input=str(record["question"]),
+            target=target,
+            choices=[str(text) for text in record["choices"]["text"]],
+            metadata={
+                "source_id": str(record["id"]),
+                "instruction": record["instruction"],
+                "language": record.get("language"),
+                "answerKey": record["answerKey"],
+            },
+        )
+    if layout == "humaneval":
+        return Sample(
+            id=str(record["id"]),
+            input=str(record["question"]),
+            target=str(record["canonical_solution"]),
+            metadata={
+                "source_id": str(record["id"]),
+                "instruction": record["instruction"],
+                "language": record.get("language"),
+                "test": record["test"],
+                "entry_point": record["entry_point"],
+                "canonical_solution": record["canonical_solution"],
+            },
+        )
+    if layout != "canonical":
+        raise ValueError(f"unknown record_layout: {layout!r}")
     metadata = {
         "source_id": str(record["id"]),
         "instruction": record["instruction"],
@@ -112,6 +171,39 @@ def record_to_sample(record: dict[str, Any]) -> Sample:
         choices=list(record["choices"]) if record.get("choices") else None,
         metadata=metadata,
     )
+
+
+@scorer(metrics=[accuracy(), stderr(cluster="source_id")])
+def code_exec_verify(timeout: int = 10) -> Scorer:
+    """Pass/fail by running completion plus test in the Inspect sandbox (Docker).
+
+    A missing test column is a data bug and fails loudly; a timeout or a
+    failing run scores incorrect with the evidence attached.
+    """
+
+    async def score(state: TaskState, target: Target) -> Score:
+        test = (state.metadata or {}).get("test")
+        if not test:
+            raise ValueError("code task sample lacks the 'test' metadata column")
+        program = f"{state.output.completion}\n{test}\n"
+        try:
+            result = await sandbox().exec(
+                cmd=["python3"], input=program, timeout=timeout, timeout_retry=False
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            return Score(
+                value=INCORRECT, answer=None,
+                explanation="sandbox timeout", metadata={"timeout": timeout},
+            )
+        passed = result.success
+        return Score(
+            value=CORRECT if passed else INCORRECT,
+            answer=state.output.completion,
+            explanation=result.stderr or result.stdout,
+            metadata={"returncode": result.returncode},
+        )
+
+    return score
 
 
 def resolve_repo(
@@ -133,10 +225,12 @@ def load_translated_dataset(
     dataset_path: str | None,
     split: str,
     limit: int | None,
+    spec: Any = None,
 ) -> Dataset:
+    fields = functools.partial(record_to_sample, spec=spec)
     if dataset_path is not None:
-        return json_dataset(dataset_path, sample_fields=record_to_sample, limit=limit)
-    return hf_dataset(path=repo, split=split, sample_fields=record_to_sample, limit=limit)
+        return json_dataset(dataset_path, sample_fields=fields, limit=limit)
+    return hf_dataset(path=repo, split=split, sample_fields=fields, limit=limit)
 
 
 def instruction_template(dataset: Dataset) -> str:
@@ -159,6 +253,7 @@ def translated_benchmark(
     split: str = "test",
     limit: int | None = None,
     repo_template: str = DEFAULT_REPO_TEMPLATE,
+    sandbox_timeout: int = 10,
 ) -> Task:
     """Evaluate a model on a translated standard benchmark.
 
@@ -171,11 +266,12 @@ def translated_benchmark(
         split: HF split to load (test for evaluation).
         limit: cap on samples, for smoke runs.
         repo_template: fallback HF repo id template when dataset_repo is not given.
+        sandbox_timeout: per-sample seconds for code_exec sandbox runs.
     """
     spec = load_entry("benchmark", benchmark)
     load_entry("language", language)
     repo = resolve_repo(benchmark, language, variant, dataset_repo, repo_template)
-    dataset = load_translated_dataset(repo, dataset_path, split, limit)
+    dataset = load_translated_dataset(repo, dataset_path, split, limit, spec)
     template = instruction_template(dataset)
 
     if spec.scorer == "numeric_match":
@@ -184,6 +280,9 @@ def translated_benchmark(
     elif spec.scorer == "choice":
         solver = [multiple_choice(template=template)]
         scorers = [choice()]
+    elif spec.scorer == "code_exec":
+        solver = [prompt_template("{instruction}\n\n{prompt}"), generate()]
+        scorers = [code_exec_verify(timeout=sandbox_timeout)]
     else:
         raise NotImplementedError(
             f"scorer {spec.scorer!r} for benchmark {benchmark!r} has no task wiring yet"
