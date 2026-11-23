@@ -48,8 +48,9 @@ metatext_patterns:
 # Step 2 risk rank (fixed formula, documented in gate.py).
 leak_penalty: 50.0
 
-# Step 3 LLM judge (advisory only; skipped with a warning when unset).
-judge_model: null                 # e.g. gpt-4o-mini; null skips the judge
+# Step 3 LLM judge (advisory only; skipped with a warning until judge_base_url is set).
+judge_model: google/gemma-4-12B-it   # pinned per methodology section 6; served on Modal L40S
+judge_base_url: null              # Modal vLLM endpoint /v1 URL (required for non-OpenAI models)
 judge_sample_decile: 0.1          # bottom risk decile
 judge_sample_random: 0.1          # plus a 10% random sample
 judge_prompt: >-

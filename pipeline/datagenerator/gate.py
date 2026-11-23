@@ -357,12 +357,25 @@ def run_judge(
     return {r["source_id"]: score for r, score in zip(sample, judge_fn(prompts), strict=True)}
 
 
-def openai_judge_fn(model: str) -> Callable[[list[str]], list[dict[str, Any]]]:
-    """Build a judge_fn over the OpenAI API (lazy import, frozen prompt)."""
+def openai_judge_fn(
+    model: str, base_url: str | None = None
+) -> Callable[[list[str]], list[dict[str, Any]]]:
+    """Build a judge_fn over an OpenAI-compatible API (lazy import, frozen prompt).
+
+    Default base_url serves OpenAI; point it at a Modal vLLM endpoint to run
+    the judge on Modal (the project default: no judge API keys needed).
+    A HuggingFace model id without a base_url fails fast instead of
+    querying OpenAI for a model it does not serve.
+    """
+    if base_url is None and "/" in model:
+        raise ValueError(
+            f"judge model {model!r} needs judge_base_url (deploy it on Modal first)"
+        )
+
     def judge(prompts: list[str]) -> list[dict[str, Any]]:
         import openai
 
-        client = openai.OpenAI()
+        client = openai.OpenAI(base_url=base_url) if base_url else openai.OpenAI()
         scores = []
         for prompt in prompts:
             response = client.chat.completions.create(
