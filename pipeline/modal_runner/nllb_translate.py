@@ -13,8 +13,6 @@ Pure helpers (chunking, code mapping, row building, orchestration) have no
 Modal dependency so tests run without the modal package or a GPU.
 """
 
-from __future__ import annotations
-
 import json
 import sys
 from collections.abc import Callable

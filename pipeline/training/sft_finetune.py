@@ -7,8 +7,6 @@ series autoscientist.hyperparams is null. Heavy imports (torch, transformers,
 peft, trl) live inside the Modal function so tests run without them.
 """
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 from typing import Any

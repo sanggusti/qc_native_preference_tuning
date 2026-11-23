@@ -5,8 +5,6 @@ dependency; the app definition below them follows the standard Modal
 vLLM pattern and is exercised at deploy time, not in unit tests.
 """
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 

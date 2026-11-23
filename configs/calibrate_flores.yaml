@@ -1,0 +1,18 @@
+# FLORES-200 calibration translations, one language per run (Phase 1 gate input).
+#   uv run python -m pipeline.datagenerator.calibrate_flores language=id
+# Smoke: add max_rows=50. Probes language_expansion for all series codes first
+# (free estimates), then translates with the pinned blueprint route.
+
+defaults:
+  - series: s01_language_medium
+  - language: id
+  - _self_
+
+max_rows: null           # cap devtest sentences for smoke runs
+push_to_hub: null        # optional HF dataset id for the calibration JSONL
+private: false
+output_dir: data/calibration
+flores_blueprint: >-
+  Translate the following sentence into {language}. {register_instruction}
+  Preserve numbers, units, proper nouns and punctuation exactly. Output only
+  the translation, no explanations.
