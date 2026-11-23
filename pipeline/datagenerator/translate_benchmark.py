@@ -329,6 +329,9 @@ def main() -> None:
         splits = ["train", "test"] if cfg.split == "both" else [cfg.split]
         blueprint = build_blueprint(entry, language)
         print(f"Blueprint sha {blueprint_hash(blueprint)} for {bench_name}/{lang_code}")
+        from dotenv import load_dotenv
+
+        load_dotenv(PROJECT_ROOT / ".env", override=False)
         client = Adaption()
         translation = series["translation"]
         column_mapping = {"prompt": "question", "completion": "answer"}

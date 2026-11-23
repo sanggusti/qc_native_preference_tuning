@@ -250,6 +250,9 @@ def main() -> None:
         if base_role not in series["base_models"]:
             raise ValueError(f"unknown base role {base_role!r}")
         model = series["base_models"][base_role]
+        from dotenv import load_dotenv
+
+        load_dotenv(PROJECT_ROOT / ".env", override=False)
         client = Adaption()
         validate_base(list(client.autoscientist.list_models()), model)
         auto = series["autoscientist"]
