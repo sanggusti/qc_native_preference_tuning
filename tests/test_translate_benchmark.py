@@ -5,18 +5,20 @@ import json
 import pytest
 
 from pipeline.datagenerator.translate_benchmark import (
+    INSTRUCTION_ROW_ID,
     blueprint_hash,
     build_blueprint,
     build_run_kwargs,
     canonical_row,
     dataset_card,
     expansion_probe_kwargs,
-    map_adapted_row,
+    index_by_id,
     probe_language_expansion,
+    require_ids,
     select_train_indices,
     source_id_for,
-    split_instruction_row,
     training_pair,
+    translated_completion,
     translator_version,
     verify_instruction,
     verify_row_survival,
@@ -94,6 +96,7 @@ def test_build_run_kwargs_pins_series_settings():
     assert kwargs["job_specification"] == {"idempotency_key": "k"}
     assert kwargs["training_type"] == "instruction_dataset"
     assert "idempotency_key" not in kwargs
+    assert kwargs["language_expansion"] is None
 
 
 def test_build_run_kwargs_sets_length_and_max_rows_when_configured():
@@ -138,10 +141,12 @@ def test_wait_until_ready_polls_row_count_and_fails_loudly():
         wait_until_ready(hanging, "ds", timeout=0, sleep_fn=lambda s: None)
 
 
-def test_map_adapted_row_maps_enhanced_and_raises_otherwise():
-    assert map_adapted_row({"enhanced_prompt": "p", "enhanced_completion": "c"}) == ("p", "c")
-    with pytest.raises(KeyError, match="enhanced_prompt"):
-        map_adapted_row({"question": "p", "answer": "c"})
+def test_translated_completion_reads_enhanced_column():
+    assert translated_completion({"enhanced_completion": "c"}) == "c"
+    with pytest.raises(KeyError, match="enhanced_completion"):
+        translated_completion({"question": "p"})
+    with pytest.raises(KeyError, match="enhanced_completion"):
+        translated_completion({"enhanced_completion": None})
 
 
 def test_verify_row_survival_equal_only():
@@ -159,16 +164,17 @@ def test_verify_instruction_requires_markers():
         verify_instruction("Q?\nANSWER: B", "choice")
 
 
-def test_split_instruction_row_extracts_first_row():
+def test_index_by_id_and_require_ids_join_on_upload_id():
     rows = [
-        {"enhanced_prompt": "Do x.\nANSWER: 1", "enhanced_completion": "Do x.\nANSWER: 1"},
-        {"enhanced_prompt": "a", "enhanced_completion": "b #### 1"},
+        {"id": "s-2", "enhanced_completion": "b"},
+        {"id": INSTRUCTION_ROW_ID, "enhanced_completion": "Do x.\nANSWER: 1"},
+        {"id": "s-1", "enhanced_completion": "a"},
     ]
-    instruction, rest = split_instruction_row(rows, "numeric_match")
-    assert instruction.startswith("Do x.")
-    assert len(rest) == 1
-    with pytest.raises(ValueError, match="empty download"):
-        split_instruction_row([], "numeric_match")
+    indexed = index_by_id(rows)
+    assert indexed == {"s-2": "b", INSTRUCTION_ROW_ID: "Do x.\nANSWER: 1", "s-1": "a"}
+    require_ids(indexed, expected=["s-1", "s-2", INSTRUCTION_ROW_ID])
+    with pytest.raises(ValueError, match="s-9"):
+        require_ids(indexed, expected=["s-9"])
 
 
 def test_canonical_row_numeric_and_choice():

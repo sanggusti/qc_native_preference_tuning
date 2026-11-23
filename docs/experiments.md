@@ -63,6 +63,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 2026-11-22 | s01_language_medium | Admit ban, bjn, bug at tier 2 (S01 grows six to nine languages; full matrix now 45 datasets, 93 finetunes, 405 evals) | maintainer decision: wider low-resource coverage behind the same gate and floor rule | |
 | 2026-11-22 | s01_language_medium | Pin sampling_seed 47 for the fixed train subset (was unspecified) | methodology 5.1 requires a fixed seeded subset; first pin, not a change | |
 | 2026-11-23 | s01_language_medium | Pin gate judge to google/gemma-4-12B-it on Modal L40S (was unspecified) | current multilingual coverage at a servable size; endpoint URL recorded per run | |
+| 2026-11-23 | s01_language_medium | Translate one column per Adaption run, join by id, clear expansion explicitly | live smoke showed prompt-column-only output, unstable download order, and probe config inheritance | |
 | | | | | |
 
 ## 5. Artifacts

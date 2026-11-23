@@ -41,8 +41,8 @@ def test_calibration_key_scopes_smoke_and_full():
 def test_build_upload_rows_echo_completion():
     rows = build_upload_rows(["hello", "world"])
     assert rows == [
-        {"question": "hello", "answer": "hello"},
-        {"question": "world", "answer": "world"},
+        {"id": "eng_Latn:devtest:0000", "question": "hello", "answer": "hello"},
+        {"id": "eng_Latn:devtest:0001", "question": "world", "answer": "world"},
     ]
 
 
