@@ -62,8 +62,7 @@ def orthography_report(texts: list[str]) -> dict[str, Any]:
 
 @hydra_main(version_base=None, config_path="../../configs/covariates", config_name="covariates")
 def main(cfg: DictConfig) -> None:
-    from datasets import load_dataset
-
+    from pipeline.covariates._common import flores_sentences
     from src.utils.registry import load_entry, load_series
 
     series = load_series(cfg.series)
@@ -71,8 +70,10 @@ def main(cfg: DictConfig) -> None:
     results: dict[str, Any] = {"series": cfg.series}
     if "jv" in codes:
         entry = load_entry("language", "jv")
-        rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
-        texts = [str(row["sentence"]) for row in rows]
+        texts = flores_sentences(
+            cfg.flores_dataset, entry["flores_code"], cfg.flores_split,
+            cfg.flores_tarball_url, cfg.output_dir,
+        )
         labels = [
             register_scores(t, list(cfg.ngoko_markers), list(cfg.krama_markers))["label"]
             for t in texts
@@ -83,8 +84,11 @@ def main(cfg: DictConfig) -> None:
         results["jav_register"]["n_items"] = len(texts)
     for code in [c for c in ("min", "ace", "ban", "bjn", "bug") if c in codes]:
         entry = load_entry("language", code)
-        rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
-        results[f"{code}_orthography"] = orthography_report([str(r["sentence"]) for r in rows])
+        texts = flores_sentences(
+            cfg.flores_dataset, entry["flores_code"], cfg.flores_split,
+            cfg.flores_tarball_url, cfg.output_dir,
+        )
+        results[f"{code}_orthography"] = orthography_report(texts)
     path = write_json(results, cfg.output_dir, "reference_audit.json")
     print(f"Wrote {path}")
     maybe_log_wandb(

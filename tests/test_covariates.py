@@ -1,7 +1,9 @@
 """No-network tests for the covariate scripts with fakes and fixtures."""
 
 import math
+import tarfile
 
+from pipeline.covariates._common import flores_from_tarball, flores_sentences, read_parallel_csv
 from pipeline.covariates.bits_per_byte import aggregate, bits_per_byte
 from pipeline.covariates.fertility import fertility_for_texts, fertility_stats, summarize
 from pipeline.covariates.reference_audit import orthography_report, register_scores
@@ -102,3 +104,51 @@ def test_orthography_report_counts_non_ascii():
     assert report["non_ascii_share"] == 1 / 9
     assert report["top_codepoints"][0]["count"] == 1
     assert "00E9" in report["top_codepoints"][0]["codepoint"]
+
+
+def test_read_parallel_csv_from_local_file(tmp_path):
+    path = tmp_path / "pairs.csv"
+    path.write_text("indonesian,javanese\nmakan apel,nedha apel\n", encoding="utf-8")
+    rows = read_parallel_csv(path)
+    assert rows == [{"indonesian": "makan apel", "javanese": "nedha apel"}]
+
+
+def _fixture_tarball(path):
+    root = path.parent / "flores200_dataset" / "devtest"
+    root.mkdir(parents=True)
+    (root / "jav_Latn.devtest").write_text("siji\nloro\n", encoding="utf-8")
+    (root / "ind_Latn.devtest").write_text("satu\ndua\n", encoding="utf-8")
+    with tarfile.open(path, "w:gz") as archive:
+        archive.add(root.parent, arcname="flores200_dataset")
+
+
+def test_flores_from_tarball_reads_aligned_sentences(tmp_path):
+    tarball = tmp_path / "flores.tar.gz"
+    _fixture_tarball(tarball)
+    assert flores_from_tarball(tarball, "devtest", "jav_Latn") == ["siji", "loro"]
+    try:
+        flores_from_tarball(tarball, "devtest", "xx_Yyyy")
+    except ValueError as exc:
+        assert "has no" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_flores_sentences_falls_back_to_cached_tarball(tmp_path, monkeypatch):
+    import pipeline.covariates._common as common
+
+    tarball = tmp_path / "flores200_dataset.tar.gz"
+    _fixture_tarball(tarball)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("gated")
+
+    import datasets
+
+    monkeypatch.setattr(datasets, "load_dataset", boom)
+    texts = flores_sentences(
+        "facebook/flores", "jav_Latn", "devtest",
+        tarball_url="https://example.invalid/x.tar.gz", cache_dir=tmp_path,
+    )
+    assert texts == ["siji", "loro"]
+    assert common.FLORES_TARBALL_URL.startswith("https://dl.fbaipublicfiles.com/")

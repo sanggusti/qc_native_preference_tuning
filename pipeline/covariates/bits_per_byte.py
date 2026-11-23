@@ -72,8 +72,7 @@ def run_bpb(model_id: str, texts: list[str]) -> dict[str, float]:
 def main(cfg: DictConfig) -> None:
     import json
 
-    from datasets import load_dataset
-
+    from pipeline.covariates._common import flores_sentences
     from src.utils.registry import load_entry, load_series
 
     print("Pre-flight: GPU job, run on Modal with timeout set; outputs persist via this JSON.")
@@ -88,8 +87,10 @@ def main(cfg: DictConfig) -> None:
     results: dict[str, Any] = {"series": cfg.series, "models": series["base_models"]}
     for code in codes:
         entry = load_entry("language", code)
-        rows = load_dataset(cfg.flores_dataset, entry["flores_code"], split=cfg.flores_split)
-        texts = [str(row["sentence"]) for row in rows]
+        texts = flores_sentences(
+            cfg.flores_dataset, entry["flores_code"], cfg.flores_split,
+            cfg.flores_tarball_url, cfg.output_dir,
+        )
         results[code] = {}
         for role, model in series["base_models"].items():
             cell: dict[str, Any] = {"flores": run_bpb(model, texts)}

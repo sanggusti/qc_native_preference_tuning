@@ -4,14 +4,15 @@ inspect_reference: inspect_evals/humaneval
 scorer: code_exec
 scorer_language_agnostic: true
 license: MIT  # openai/openai_humaneval
+eval_only: true   # HumanEval has no train split; train_source below is a provenance pointer
 record_layout: humaneval   # prompt plus test, entry_point, canonical_solution in metadata
 instruction_en: |-
   Complete the Python function below. Output only the completed function code, with no explanations.
 
 eval_source:
-  hf_repo: openai/openai_humaneval
-  config: openai_humaneval
-  split: test                # 164 items
+  hf_repo: evalplus/humanevalplus
+  config: default
+  split: test                # 164 items, same task_ids, strictly stronger tests
   fields:
     prompt: prompt           # signature plus docstring; only the docstring is translated
     test: test               # never translated
@@ -21,13 +22,13 @@ eval_source:
 train_source:
   hf_repo: openai/openai_humaneval
   config: openai_humaneval
-  split: test                # HumanEval has no train split; finetuning uses MBPP or is eval-only
+  split: test                # HumanEval has no train split; this benchmark is eval-only
   fields:
     prompt: prompt
     test: test
     entry_point: entry_point
     canonical_solution: canonical_solution
-  min_rows: 1000             # not satisfiable from HumanEval alone; see note above
+  min_rows: 0                # eval-only benchmark; no train split exists
 
 translate:
   fields: [prompt]
