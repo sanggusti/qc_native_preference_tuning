@@ -10,7 +10,9 @@ from pipeline.datagenerator.translate_benchmark import (
     build_blueprint,
     build_run_kwargs,
     canonical_row,
+    check_run_is_latest,
     dataset_card,
+    dataset_latest_run_id,
     expansion_probe_kwargs,
     index_by_id,
     probe_language_expansion,
@@ -34,11 +36,28 @@ class _Status:
         self.error_data = type("E", (), {"message": message})()
 
 
+class _Page:
+    def __init__(self, items):
+        self.items = items
+
+    def _get_page_items(self):
+        return self.items
+
+
+class _Pager:
+    def __init__(self, pages):
+        self.pages = pages
+
+    def iter_pages(self):
+        return iter(self.pages)
+
+
 class _Datasets:
-    def __init__(self, statuses=None, reject=()):
+    def __init__(self, statuses=None, reject=(), listed=None):
         self.statuses = list(statuses or [_Status(row_count=10)])
         self.reject = set(reject)
         self.run_calls = []
+        self.listed = listed or []
 
     def run(self, dataset_id, **kwargs):
         self.run_calls.append((dataset_id, kwargs))
@@ -49,6 +68,9 @@ class _Datasets:
 
     def get_status(self, dataset_id):
         return self.statuses.pop(0) if len(self.statuses) > 1 else self.statuses[0]
+
+    def list(self):
+        return _Pager([_Page(self.listed)])
 
 
 class _Client:
@@ -205,3 +227,19 @@ def test_training_pair_and_card_and_version():
     card = dataset_card("gsm8k", "jv", {"train": 1000}, "ngoko", "bp", {"train": "d1"}, "MIT")
     assert "gsm8k-jv" in card and "pending" in card
     assert translator_version().startswith("adaption-datasets/")
+
+
+def test_latest_run_guard():
+    listed = [
+        {"dataset_id": "d1", "run_id": "run-new"},
+        {"dataset_id": "d2", "run_id": None},
+    ]
+    client = _Client(_Datasets(listed=listed))
+    assert dataset_latest_run_id(client, "d1") == "run-new"
+    assert dataset_latest_run_id(client, "d2") is None
+    assert dataset_latest_run_id(client, "missing") is None
+    check_run_is_latest(client, "d1", "run-new")
+    with pytest.raises(RuntimeError, match="not the latest run"):
+        check_run_is_latest(client, "d1", "run-old")
+    with pytest.raises(RuntimeError, match="not the latest run"):
+        check_run_is_latest(client, "missing", "run-old")

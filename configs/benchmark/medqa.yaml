@@ -39,11 +39,11 @@ translate:
     - drug names, units, laboratory values and standard abbreviations
     - the translated correct option must be byte-identical to one translated choice
   blueprint: >-
-    Translate the clinical vignette and every answer option into {language}. Keep the options
-    in the same order and do not merge or drop any option. Keep drug names, units, laboratory
-    values and standard abbreviations unchanged. Be formal and terminologically precise in
-    the register given next; where the language has no established medical term, keep the
-    Indonesian or Latin term and mark nothing else. {register_instruction}
+    Translate ONLY the text below into {language}. Output nothing but the translation. Keep
+    the options in the same order and do not merge or drop any option. Keep drug names, units,
+    laboratory values and standard abbreviations unchanged. Be formal and terminologically
+    precise in the register given next; where the language has no established medical term,
+    keep the Indonesian or Latin term and mark nothing else. {register_instruction}
   prompt_template_key: multiple_choice_instruction   # translated once per language; keeps the literal "ANSWER: $LETTER"
   variants:
     rt: back-translation of the {language} test split into English by the same translator

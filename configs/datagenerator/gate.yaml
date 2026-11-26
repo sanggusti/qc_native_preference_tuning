@@ -1,6 +1,7 @@
 # Translation quality gate (issue #51, methodology section 6).
 # Every threshold lives here, never hardcoded. Values cite methodology section 6.
-# Smoke: uv run python -m pipeline.datagenerator.gate --help
+# Run: uv run python -m pipeline.datagenerator.gate \
+#   input_jsonl=data/translated/gsm8k-jv-test.jsonl lid_model_path=data/lid/model_v4_small.ftz
 
 benchmark: gsm8k
 language: jv
@@ -31,7 +32,9 @@ length_ratio_max: 2.0
 echo_chrf_max: 90.0               # methodology 0.9 on the 0-100 chrF++ scale
 sentence_min_chars: 20            # length floor for a qualifying sentence
 lid_prob_min: 0.5                 # default; step 0 calibrates so 95% of references pass
-lid_non_target_max_share: 0.2     # fail above 20% non-target qualifying sentences
+lid_verdict_level: item           # item verdict: sentence-level GlotLID cannot separate
+                                # close Austronesian languages (methodology 6 amendment, Nov 2026)
+lid_non_target_max_share: 0.2     # fail above 20% non-target qualifying sentences (sentence level only)
 lid_reject_codes: [ind_Latn, eng_Latn]
 lid_model_path: null              # FastText GlotLID model file; download cis-lmu/glotlid
                                 # model_v4_small.ftz (35MB, 99.5% top-label agreement with v4).

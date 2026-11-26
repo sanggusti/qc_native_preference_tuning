@@ -43,7 +43,7 @@ translate:
     - the Subject column verbatim (never translated)
     - factual content and proper nouns
   blueprint: >-
-    Translate the question and the four answer options into {language}.
+    Translate ONLY the text below into {language}. Output nothing but the translation.
     {register_instruction} Keep the options in the same order. Preserve factual
     content and proper nouns. Do not reveal or change the correct answer.
   prompt_template_key: multiple_choice_instruction

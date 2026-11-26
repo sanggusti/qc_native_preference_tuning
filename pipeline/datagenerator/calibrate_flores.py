@@ -77,14 +77,20 @@ def main() -> None:
         upload = build_upload_rows(texts)
         upload_path = write_upload_file(upload)
         try:
-            dataset_id = client.datasets.upload_file(
-                upload_path, name=f"flores-calibration-{lang_code}"
-            ).dataset_id
-            wait_until_ready(client, dataset_id)
-            probes = probe_language_expansion(
-                client, dataset_id, column_mapping, list(series["languages"])
-            )
-            print(f"expansion probes: {probes}")
+            if cfg.dataset_id:
+                dataset_id = cfg.dataset_id
+                print(f"resuming on dataset {dataset_id} (upload and probes skipped)")
+                probes = {}
+            else:
+                dataset_id = client.datasets.upload_file(
+                    upload_path, name=f"flores-calibration-{lang_code}"
+                ).dataset_id
+                print(f"dataset_id: {dataset_id} (server may rename the display name)")
+                wait_until_ready(client, dataset_id)
+                probes = probe_language_expansion(
+                    client, dataset_id, column_mapping, list(series["languages"])
+                )
+                print(f"expansion probes: {probes}")
             blueprint = render_blueprint(
                 cfg.flores_blueprint, language["name"], language["register_instruction"]
             )

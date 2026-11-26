@@ -148,6 +148,35 @@ def check_run_succeeded(result: Any) -> None:
         raise RuntimeError(getattr(error, "message", str(error)))
 
 
+def dataset_latest_run_id(client: Any, dataset_id: str) -> str | None:
+    """Return the dataset's latest run id (None when the dataset has no runs)."""
+    pages = client.datasets.list()
+    pages = pages.iter_pages() if hasattr(pages, "iter_pages") else [pages]
+    for page in pages:
+        items = page._get_page_items() if hasattr(page, "_get_page_items") else list(page)
+        for dataset in items:
+            entry = dataset.model_dump() if hasattr(dataset, "model_dump") else dict(dataset)
+            if entry.get("dataset_id") == dataset_id:
+                return entry.get("run_id")
+    return None
+
+
+def check_run_is_latest(client: Any, dataset_id: str, run_id: str) -> None:
+    """Refuse a download that would alias to another run's output.
+
+    Verified live: download returns the dataset's latest run only and takes
+    no run selector, so on a resumed multi-run dataset a deduped run would
+    silently download a sibling column's translations.
+    """
+    latest = dataset_latest_run_id(client, dataset_id)
+    if latest != run_id:
+        raise RuntimeError(
+            f"run {run_id} is not the latest run on dataset {dataset_id} "
+            f"(latest is {latest}); the download would alias to another "
+            "column. Re-run on a fresh upload instead of resuming."
+        )
+
+
 def translated_completion(row: dict[str, Any]) -> str:
     """Read the translated prompt column; raise when missing or null.
 
@@ -376,24 +405,43 @@ def main() -> None:
                     "answer": _completion_source_text(source_row, fields, entry["scorer"]),
                     "source_row": source_row,
                 })
-            upload = [{"id": INSTRUCTION_ROW_ID, "question": entry["instruction_en"], "answer": entry["instruction_en"]}]
+            # The filler column stands in as the completion side of the mapping:
+            # each run translates its prompt column, and the sibling column must
+            # not be visible or the model translates it into the output too
+            # (verified live: solutions leaked into translated questions).
+            filler = "No additional context."
+            upload = [{"id": INSTRUCTION_ROW_ID, "question": entry["instruction_en"], "answer": entry["instruction_en"], "context": filler}]
             upload += [
-                        {"id": item["source_id"], "question": item["question"], "answer": item["answer"]}
+                        {"id": item["source_id"], "question": item["question"], "answer": item["answer"], "context": filler}
                         for item in items
                     ]
             upload_path = write_upload_file(upload)
             try:
-                dataset_id = client.datasets.upload_file(
-                    upload_path, name=f"{bench_name}-{lang_code}-{split}"
-                ).dataset_id
+                if cfg.dataset_id:
+                    dataset_id = cfg.dataset_id
+                    print(f"resuming on dataset {dataset_id} (upload skipped)")
+                else:
+                    dataset_id = client.datasets.upload_file(
+                        upload_path, name=f"{bench_name}-{lang_code}-{split}"
+                    ).dataset_id
+                    print(f"dataset_id: {dataset_id} (server may rename the display name)")
                 wait_until_ready(client, dataset_id)
-                scope = cfg.max_rows if cfg.max_rows is not None else "full"
+                # The upload holds the items plus the instruction row, so the
+                # run cap must cover len(upload); cfg.max_rows would drop a row.
+                # The idempotency scope tracks the effective cap: same params must
+                # map to the same key, or retries silently reuse a stale run.
+                run_cap = len(upload) if cfg.max_rows is not None else None
+                scope = run_cap if run_cap is not None else "full"
                 translated_columns: dict[str, dict[str, str]] = {}
                 for column in ("question", "answer"):
                     key = f"{bench_name}-{lang_code}-{split}-{column}-rows{scope}"
+                    # The run translates the prompt column into enhanced_completion;
+                    # completion maps to the neutral filler (same column twice is
+                    # rejected live, and the sibling column would leak into the
+                    # output).
                     kwargs = build_run_kwargs(
-                        translation, blueprint, {"prompt": column, "completion": column},
-                        cfg.max_rows, key,
+                        translation, blueprint, {"prompt": column, "completion": "context"},
+                        run_cap, key,
                     )
                     estimate = client.datasets.run(dataset_id, **kwargs, estimate=True)
                     if column == "question":
@@ -403,15 +451,17 @@ def main() -> None:
                         )
                     else:
                         print(f"estimate [{column}]: {estimate}")
-                    check_run_succeeded(client.datasets.run(dataset_id, **kwargs))
+                    run_response = client.datasets.run(dataset_id, **kwargs)
+                    check_run_succeeded(run_response)
                     check_run_succeeded(
                         client.datasets.wait_for_completion(dataset_id, timeout=7200)
                     )
+                    check_run_is_latest(client, dataset_id, run_response.run_id)
                     downloaded = download_rows(client, dataset_id)
                     verify_row_survival(len(downloaded), len(upload))
                     translated_columns[column] = index_by_id(downloaded)
                 require_ids(translated_columns["question"], translated_columns["answer"],
-                            [item["source_id"] for item in items] + [INSTRUCTION_ROW_ID])
+                            expected=[item["source_id"] for item in items] + [INSTRUCTION_ROW_ID])
                 instruction = instruction_text(translated_columns["question"], entry["scorer"])
                 canonical = []
                 for item in items:
@@ -474,6 +524,14 @@ def main() -> None:
                 run_ids[split] = {"dataset_id": dataset_id, "columns": ["question", "answer"]}
             finally:
                 Path(upload_path).unlink(missing_ok=True)
+        out_dir = Path(cfg.output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for split, rows in pushed.items():
+            split_path = out_dir / f"{bench_name}-{lang_code}-{split}.jsonl"
+            with open(split_path, "w", encoding="utf-8") as handle:
+                for row in rows:
+                    handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+            print(f"Wrote {len(rows)} rows to {split_path}")
         if cfg.push_to_hub:
             DatasetDict({split: Dataset.from_list(pushed[split]) for split in pushed}).push_to_hub(
                 cfg.push_to_hub, private=bool(cfg.private)
