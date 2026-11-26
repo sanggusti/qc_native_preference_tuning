@@ -11,6 +11,7 @@ defaults:
 
 split: both            # train | test | both
 max_rows: null         # cap per split for smoke runs
+dataset_id: null       # resume: reuse an uploaded dataset instead of uploading again
 push_to_hub: null      # HF dataset id, e.g. sanggusti/gsm8k-jv; null = local only
 private: false
 output_dir: data/translated

@@ -28,6 +28,7 @@ CFG = {
     "echo_chrf_max": 90.0,
     "sentence_min_chars": 20,
     "lid_prob_min": 0.5,
+    "lid_verdict_level": "sentence",
     "lid_non_target_max_share": 0.2,
     "lid_reject_codes": ["ind_Latn", "eng_Latn"],
     "refusal_patterns": ["i cannot translate"],
@@ -154,6 +155,20 @@ def test_lid_item_verdict_sentence_and_item_paths():
     ok, _ = lid_item_verdict("Siji.", "jav_Latn", StubLid("jav_Latn", 0.9), 20, 0.5, 0.2, [])
     assert ok
     ok, _ = lid_item_verdict("Siji.", "jav_Latn", StubLid("jav_Latn", 0.1), 20, 0.5, 0.2, [])
+    assert not ok
+
+
+def test_lid_item_verdict_item_level_skips_sentence_path():
+    text = (
+        "Ukara kapisan iki dawa banget kanggo lolos. "
+        "Ukara kapindho uga dawa banget tenan. "
+        "Ukara katelu isih dawa banget uga."
+    )
+    ok, diag = lid_item_verdict(
+        text, "jav_Latn", StubLid("jav_Latn", 0.9), 20, 0.5, 0.2, ["ind_Latn"], "item")
+    assert ok and diag["label"] == "jav_Latn"
+    ok, _ = lid_item_verdict(
+        text, "jav_Latn", StubLid("ind_Latn", 0.9), 20, 0.5, 0.2, ["ind_Latn"], "item")
     assert not ok
 
 

@@ -146,10 +146,17 @@ def lid_item_verdict(
     prob_min: float,
     non_target_max_share: float,
     reject_codes: list[str],
+    verdict_level: str = "sentence",
 ) -> tuple[bool, dict[str, Any]]:
-    """Apply the step 1 language rule; returns (passes, diagnostics)."""
+    """Apply the step 1 language rule; returns (passes, diagnostics).
+
+    verdict_level "item" labels the whole item at once. Required for closely
+    related languages: verified live November 2026, sentence-level GlotLID
+    cannot separate Javanese from Indonesian (genuine Javanese sentences
+    labelled ind_Latn at 0.48-0.49, plus pov/zsm noise labels under 0.20).
+    """
     qualifying = qualifying_sentences(text, min_chars)
-    if len(qualifying) >= 3:
+    if verdict_level != "item" and len(qualifying) >= 3:
         labels = lid.label(qualifying)
         non_target = sum(1 for code, _ in labels if code != target_code)
         rejected = [code for code, _ in labels if code in reject_codes]
@@ -191,6 +198,7 @@ def hard_checks(
     lid_ok, lid_diag = lid_item_verdict(
         translated_text, target_code, lid, get("sentence_min_chars"),
         get("lid_prob_min"), get("lid_non_target_max_share"), list(get("lid_reject_codes")),
+        get("lid_verdict_level"),
     )
     blocked = not (struct_ok and length_ok and refusal is None and metatext is None and not echo and lid_ok)
     return {
@@ -389,6 +397,28 @@ def openai_judge_fn(
     return judge
 
 
+def _numpy2_fasttext_shim() -> None:
+    """Map numpy-1 copy=False to copy=None (numpy 2 migration guide).
+
+    fasttext 0.9.3 calls np.array(..., copy=False), which raises on numpy 2.
+    copy=None preserves the numpy 1.x "copy only if needed" behavior. Scoped
+    to processes that load the LID model; remove if fasttext ever fixes it.
+    """
+    import numpy
+
+    if getattr(numpy.array, "__fasttext_shim__", False):
+        return
+    original = numpy.array
+
+    def patched(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        if kwargs.get("copy") is False:
+            kwargs["copy"] = None
+        return original(*args, **kwargs)
+
+    patched.__fasttext_shim__ = True  # type: ignore[attr-defined]
+    numpy.array = patched  # type: ignore[assignment]
+
+
 class FastTextLid:
     """GlotLID labels via a FastText model file (lazy import, loaded once)."""
 
@@ -397,10 +427,12 @@ class FastTextLid:
             import fasttext
         except ImportError as exc:
             raise RuntimeError("GlotLID needs fasttext: pip install fasttext") from exc
+        _numpy2_fasttext_shim()
         self._model = fasttext.load_model(model_path)
 
     def label(self, texts: list[str]) -> list[tuple[str, float]]:
-        labels, probs = self._model.predict(texts)
+        clean = [text.replace("\n", " ").replace("\r", " ") for text in texts]
+        labels, probs = self._model.predict(clean)
         return [
             (label[0].replace("__label__", ""), float(prob[0]))
             for label, prob in zip(labels, probs, strict=True)
@@ -505,15 +537,203 @@ def main() -> None:
 
     @hydra_main(version_base=None, config_path="../../configs/datagenerator", config_name="gate")
     def hydra_main_fn(cfg: DictConfig) -> None:
+        from omegaconf import open_dict
+
         from src.utils.registry import load_entry
 
         language = load_entry("language", cfg.language)
         benchmark = load_entry("benchmark", cfg.benchmark)
-        print(f"Gate for {cfg.benchmark}/{cfg.language}/{cfg.split} (target {language['flores_code']}, scorer {benchmark['scorer']}).")
-        print("Full orchestration (steps 0-5 over Hub data) runs with live backends;")
-        print("pure cores are covered by tests/test_gate.py.")
+        target_code = language["flores_code"]
+        print(f"Gate for {cfg.benchmark}/{cfg.language}/{cfg.split} (target {target_code}, scorer {benchmark['scorer']}).")
+        rows = _load_gate_rows(cfg)
+        source_by_id = _load_gate_sources(cfg, rows)
+        opinion_by_id = _load_id_map(cfg.nllb_second_opinion_jsonl)
+        back_by_id = _load_id_map(cfg.nllb_backtranslation_jsonl)
+        lid = _load_lid(cfg, target_code)
+        calibration = _calibrate_step0(cfg, target_code, lid)
+        for key, value in calibration.get("overrides", {}).items():
+            with open_dict(cfg):
+                setattr(cfg, key, value)
+        if cfg.judge_base_url is None:
+            print("warning: judge skipped (judge_base_url is null; advisory only)")
+            judge_fn = None
+        else:
+            judge_fn = openai_judge_fn(cfg.judge_model, cfg.judge_base_url)
+        report = orchestrate_gate(
+            rows, source_by_id, opinion_by_id, back_by_id,
+            benchmark["scorer"], target_code, lid, judge_fn, cfg, cfg.language,
+        )
+        verdict = _partial_verdict(report, cfg)
+        path = write_report(
+            {"gate": f"{cfg.benchmark}/{cfg.language}/{cfg.split}", **report, **verdict,
+             "calibration": calibration},
+            cfg.output_dir, f"gate-{cfg.benchmark}-{cfg.language}-{cfg.split}.json",
+        )
+        print(f"blocked {report['blocked']}/{report['n_rows']} (mean risk {report['mean_risk']:.1f})")
+        print(f"evaluated rules: {verdict['rules_evaluated']}")
+        print(f"pending rules: {verdict['rules_pending']}")
+        print(f"Wrote {path}")
+        _log_gate_wandb(cfg, report, verdict)
 
     hydra_main_fn()
+
+
+def _read_jsonl(path: str) -> list[dict[str, Any]]:
+    """Read a JSONL file into row dicts."""
+    import json
+
+    with open(path, encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def _load_gate_rows(cfg: Any) -> list[dict[str, Any]]:
+    """Load translated rows; exactly one of input_jsonl/input_dataset."""
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    if bool(get("input_jsonl")) == bool(get("input_dataset")):
+        raise ValueError("set exactly one of input_jsonl/input_dataset")
+    if get("input_jsonl"):
+        raw = _read_jsonl(get("input_jsonl"))
+    else:
+        from datasets import load_dataset
+
+        raw = list(load_dataset(get("input_dataset"), split=get("input_split")))
+    text_column, id_column = get("text_column"), get("id_column")
+    rows = []
+    for row in raw:
+        rows.append({
+            "source_id": str(row[id_column]),
+            "question": str(row[text_column]),
+            # Translated completions are not persisted (canonical schema 5.3);
+            # answer-side structure was enforced fatally at translate time.
+            "answer": "",
+            "instruction": str(row.get("instruction", "")),
+        })
+    print(f"loaded {len(rows)} translated rows")
+    return rows
+
+
+def _load_gate_sources(cfg: Any, rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Load English sources; canonical inputs carry their own _en columns."""
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    if get("source_jsonl"):
+        raw = _read_jsonl(get("source_jsonl"))
+        return {str(row[get("id_column")]): row for row in raw}
+    if get("source_dataset"):
+        from datasets import load_dataset
+
+        raw = list(load_dataset(get("source_dataset"), split=get("input_split")))
+        return {str(row[get("id_column")]): row for row in raw}
+    print("source: using _en columns embedded in the translated rows")
+    raw = _read_jsonl(get("input_jsonl")) if get("input_jsonl") else []
+    embedded = {str(row[get("id_column")]): row for row in raw}
+    sources = {}
+    for row in rows:
+        source_id = row["source_id"]
+        original = embedded.get(source_id, {})
+        sources[source_id] = {
+            "question": str(original.get("question_en", "")),
+            "answer": "",
+            "instruction": str(original.get("instruction_en", "")),
+        }
+    return sources
+
+
+def _load_id_map(path: str | None) -> dict[str, str]:
+    """Load an NLLB sidecar (source_id -> text); empty when unset."""
+    if not path:
+        return {}
+    return {str(row["source_id"]): str(row["text"]) for row in _read_jsonl(path)}
+
+
+def _load_lid(cfg: Any, target_code: str) -> LidClient:
+    """Real GlotLID client, or a target-always stub for tests."""
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    if get("lid_stub"):
+        return _StubLid(target_code)
+    if not get("lid_model_path"):
+        raise ValueError("set lid_model_path (or lid_stub=true for tests)")
+    return FastTextLid(get("lid_model_path"))
+
+
+class _StubLid:
+    """Test LID client that always votes the target code."""
+
+    def __init__(self, target_code: str) -> None:
+        self.target_code = target_code
+
+    def label(self, texts: list[str]) -> list[tuple[str, float]]:
+        return [(self.target_code, 1.0) for _ in texts]
+
+
+def _calibrate_step0(cfg: Any, target_code: str, lid: LidClient) -> dict[str, Any]:
+    """Calibrate LID threshold and length band on FLORES references.
+
+    Falls back to config defaults (recorded) when the gated FLORES repo is
+    unreachable.
+    """
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    try:
+        from pipeline.covariates._common import flores_sentences
+
+        refs = flores_sentences(get("flores_dataset"), target_code, get("flores_split"))
+        sources = flores_sentences(get("flores_dataset"), "eng_Latn", get("flores_split"))
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"warning: step 0 calibration skipped ({type(exc).__name__}: {exc})")
+        return {"status": "skipped", "overrides": {}}
+    probs = [prob for _, prob in lid.label(refs)]
+    ratios = [
+        len(ref) / max(1, len(source)) for ref, source in zip(refs, sources, strict=False)
+    ]
+    overrides = {
+        "lid_prob_min": calibrate_lid_threshold(probs),
+        "length_ratio_min": calibrate_length_band(ratios)[0],
+        "length_ratio_max": calibrate_length_band(ratios)[1],
+    }
+    print(f"step 0: lid_prob_min={overrides['lid_prob_min']:.3f} "
+          f"length_band=({overrides['length_ratio_min']:.3f}, {overrides['length_ratio_max']:.3f})")
+    return {"status": "calibrated", "n_refs": len(refs), "overrides": overrides}
+
+
+def _partial_verdict(report: dict[str, Any], cfg: Any) -> dict[str, Any]:
+    """Evaluate the computable admission rules; NLLB/human rules stay pending.
+
+    Structure holds by construction: translate raises fatally on any
+    structure failure, so every persisted row passed it upstream.
+    """
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    evaluated = {
+        "structure": True,
+        "fallback": True,
+    }
+    lid_failures = report["blocked_by_cause"].get("lid", 0)
+    lid_share = 1.0 - lid_failures / max(1, report["n_rows"])
+    evaluated["lid_share"] = lid_share >= get("admit_lid_share")
+    pending = ["nllb_ratio", "chrf_floor", "leakage", "register", "human_answer", "human_errors"]
+    return {
+        "rules_evaluated": {**evaluated, "lid_share_value": lid_share},
+        "rules_pending": pending,
+        "evaluated_pass": all(evaluated.values()),
+    }
+
+
+def _log_gate_wandb(cfg: Any, report: dict[str, Any], verdict: dict[str, Any]) -> None:
+    """Best-effort wandb logging for the gate report."""
+    from omegaconf import OmegaConf
+
+    from pipeline.datagenerator.translate_benchmark import maybe_log_wandb
+
+    get = cfg.get if isinstance(cfg, dict) else cfg.__getattr__
+    wandb_cfg = get("wandb")
+    project = wandb_cfg.get("project") if isinstance(wandb_cfg, dict) else wandb_cfg.project
+    prefix = wandb_cfg.get("run_prefix") if isinstance(wandb_cfg, dict) else wandb_cfg.run_prefix
+    maybe_log_wandb(
+        project,
+        f"{prefix}-{cfg.benchmark}-{cfg.language}-{cfg.split}",
+        [cfg.benchmark, cfg.language],
+        OmegaConf.to_container(cfg, resolve=True),
+        {"blocked": report["blocked"], "n_rows": report["n_rows"],
+         "mean_risk": report["mean_risk"], **verdict["rules_evaluated"]},
+    )
 
 
 if __name__ == "__main__":

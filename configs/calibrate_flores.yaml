@@ -9,6 +9,7 @@ defaults:
   - _self_
 
 max_rows: null           # cap devtest sentences for smoke runs
+dataset_id: null         # resume: reuse an uploaded dataset instead of uploading again
 push_to_hub: null        # optional HF dataset id for the calibration JSONL
 private: false
 output_dir: data/calibration
