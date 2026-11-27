@@ -4,16 +4,16 @@ Finished datasets and coverage for the S01 data phase. Updated by the agent
 whenever a dataset run completes: verify rows, gate verdict and Hub repo, then
 update the tables below and the ledger in `docs/experiments.md` section 3.
 
-Last updated: 2026-11-27 (all 8 gsm8k languages rerunning after the
-solution-leakage incident; see Incidents).
+Last updated: 2026-11-27 (all 8 gsm8k languages complete, gated,
+leak-regens substituted and re-pushed; 6 admitted, bjn/bug provisional).
 
 ## Summary
 
 | Set | Coverage | Rows | Status |
 |---|---|---|---|
 | FLORES-200 calibration | 9/9 languages (8 translated + en source) | 8,096 translated | complete, gated inputs |
-| gsm8k train (1000 subset) | 0/8 clean (4 contaminated, 4 running) | 0 clean | rerunning |
-| gsm8k test (1319) | 0/8 clean (4 contaminated, 4 running) | 0 clean | rerunning |
+| gsm8k train (1000 subset) | 8/8 complete (6 admitted, bjn/bug provisional) | 8,000 | done |
+| gsm8k test (1319) | 8/8 complete (6 admitted, bjn/bug provisional) | 10,552 | done |
 | medqa | parked (tier 3, issue #62) | 0 | not started |
 | NLLB second-opinion set | pending Modal work | 0 | not started |
 
@@ -44,19 +44,24 @@ pushed to Hub as `sanggusti/math-qa-{lang}`.
 
 | Lang | Train | Test | Hub repo | Gate | Status |
 |---|---|---|---|---|---|
-| jv | rerunning | rerunning | [math-qa-jv](https://huggingface.co/datasets/sanggusti/math-qa-jv) | probe green 0.92 | contaminated batch discarded |
-| id | rerunning | rerunning | [math-qa-id](https://huggingface.co/datasets/sanggusti/math-qa-id) | probe n/a | contaminated batch discarded |
-| su | rerunning | rerunning | [math-qa-su](https://huggingface.co/datasets/sanggusti/math-qa-su) | probe n/a | contaminated batch discarded |
-| min | rerunning | rerunning | [math-qa-min](https://huggingface.co/datasets/sanggusti/math-qa-min) | probe n/a | contaminated batch discarded |
-| ace | running | running | [math-qa-ace](https://huggingface.co/datasets/sanggusti/math-qa-ace) | pending | first attempt failed marker check |
-| ban | running | running | [math-qa-ban](https://huggingface.co/datasets/sanggusti/math-qa-ban) | pending | first attempt failed marker check |
-| bjn | running | running | [math-qa-bjn](https://huggingface.co/datasets/sanggusti/math-qa-bjn) | pending | first attempt failed marker check |
-| bug | running | running | [math-qa-bug](https://huggingface.co/datasets/sanggusti/math-qa-bug) | pending | first attempt failed marker check |
+| jv | 1000 | 1319 | [math-qa-jv](https://huggingface.co/datasets/sanggusti/math-qa-jv) | lid 0.94/0.94, green | 2 leaks regenned, re-pushed |
+| id | 1000 | 1319 | [math-qa-id](https://huggingface.co/datasets/sanggusti/math-qa-id) | lid 0.94/0.93, green | 0 leaks; 16 regenned, 3 repaired |
+| su | 1000 | 1319 | [math-qa-su](https://huggingface.co/datasets/sanggusti/math-qa-su) | lid 0.98/0.98, green | 1 leak regenned, re-pushed |
+| min | 1000 | 1319 | [math-qa-min](https://huggingface.co/datasets/sanggusti/math-qa-min) | lid 0.91/0.91, green | 0 leaks; test rerun after timeout |
+| ace | 1000 | 1319 | [math-qa-ace](https://huggingface.co/datasets/sanggusti/math-qa-ace) | lid 0.95/0.96, green | 1 leak regenned, re-pushed |
+| ban | 1000 | 1319 | [math-qa-ban](https://huggingface.co/datasets/sanggusti/math-qa-ban) | lid 0.93/0.93, green | 1 leak regenned, re-pushed |
+| bjn | 1000 | 1319 | [math-qa-bjn](https://huggingface.co/datasets/sanggusti/math-qa-bjn) | lid 0.67/0.68, PROVISIONAL | 4 leaks regenned, re-pushed |
+| bug | 1000 | 1319 | [math-qa-bug](https://huggingface.co/datasets/sanggusti/math-qa-bug) | lid 0.43/0.43, PROVISIONAL | 8 leaks regenned, re-pushed |
 
-Contaminated Hub repos will be overwritten by the clean rerun push. Local
-`data/translated/` files for jv/id/su/min are the contaminated batch and will
-be overwritten too. Gate reports in `data/gate/` from the contaminated batch
-are superseded; only the 50-row jv probe report stands (5/50 blocked, lid 0.92).
+All Hub repos hold the final clean data (17 leak-regen rows substituted
+across jv/su/bjn/ace/ban/bug and re-pushed). Local `data/translated/` files
+match. Gate reports in `data/gate/` are current per split.
+
+Provisional languages (tier-2 path, user-approved 2026-11-27): bjn translator
+matches human references within 8 points (0.68 vs 0.76; the 0.90 bar is
+unachievable for Banjar by anyone). bug translator underperforms references
+(0.35 vs 0.84; emits pure Indonesian on hard sentences). Both ship flagged;
+contamination is measured by the leak_id covariate when the NLLB set lands.
 
 ## Probes
 
@@ -78,8 +83,10 @@ Adaption dashboard (1687 at start).
 | Probes and mini-probes | ~10 |
 | Failed full attempts (marker/numeral, ~7 splits) | ~150 |
 | Contaminated full batch (4 languages, discarded) | ~190 |
-| Clean rerun, 8 languages (in flight) | ~385 |
-| Remaining headroom after rerun | ~780 |
+| Clean batch, 8 languages (regen + repair incl.) | ~400 |
+| Leak regens (17 rows, 5 datasets) | ~5 |
+| Total spend (dashboard: 1130 used of 1687) | ~915 estimated, ~215 unaccounted |
+| Remaining headroom | ~557 |
 
 ## Incidents
 
