@@ -4,8 +4,8 @@ Finished datasets and coverage for the S01 data phase. Updated by the agent
 whenever a dataset run completes: verify rows, gate verdict and Hub repo, then
 update the tables below and the ledger in `docs/experiments.md` section 3.
 
-Last updated: 2026-11-27 (all 8 gsm8k languages complete, gated,
-leak-regens substituted and re-pushed; 6 admitted, bjn/bug provisional).
+Last updated: 2026-11-27 (calibration sets and gate reports pushed to Hub;
+all artifacts published).
 
 ## Summary
 
@@ -20,19 +20,19 @@ leak-regens substituted and re-pushed; 6 admitted, bjn/bug provisional).
 ## FLORES-200 calibration (complete)
 
 Full devtest (1,012 sentences) translated with the pinned blueprint route.
-Local JSON only; no Hub push agreed for calibration sets yet. All wandb runs
-backfilled (`datagen-flores-calibration-{lang}`).
+On the Hub as `sanggusti/flores200-calibration-{lang}` with provenance cards.
+All wandb runs backfilled (`datagen-flores-calibration-{lang}`).
 
-| Lang | Rows | Adaption dataset id | Server display name | Status |
+| Lang | Rows | Hub repo | Adaption dataset id | Status |
 |---|---|---|---|---|
-| id | 1012 | cadb6a23-fe21-457d-8c08-f5cfd0ed7bc3 | general_text_echo | verified id |
-| jv | 1012 | 407e0307-a91a-4b82-bac7-94ee592652a7 | identity_text_pairs | verified jv |
-| su | 1012 | 432a5c09-cf0e-4f2a-bbce-1a509338b645 | identity_text_pairs | verified su |
-| min | 1012 | 9ebd2033-1761-41ea-ad84-6be7691a2120 | identity_text_pairs | verified min |
-| ace | 1012 | bd216607-e028-4697-9fd8-ff7fe3a92dc1 | identity_text_pairs | verified ace |
-| ban | 1012 | 4857aa7c-3fb7-46de-b77d-32a0da69a83a | identity_text_pairs | verified ban |
-| bjn | 1012 | 7edd018f-1218-42f4-ae18-a44908802c4e | identical_sentence_pairs | verified bjn |
-| bug | 1012 | a12b39ae-d939-4036-9cc5-38d79d3c1644 | factual_statements_corpus | verified bug |
+| id | 1012 | [flores200-calibration-id](https://huggingface.co/datasets/sanggusti/flores200-calibration-id) | cadb6a23 | verified id |
+| jv | 1012 | [flores200-calibration-jv](https://huggingface.co/datasets/sanggusti/flores200-calibration-jv) | 407e0307 | verified jv |
+| su | 1012 | [flores200-calibration-su](https://huggingface.co/datasets/sanggusti/flores200-calibration-su) | 432a5c09 | verified su |
+| min | 1012 | [flores200-calibration-min](https://huggingface.co/datasets/sanggusti/flores200-calibration-min) | 9ebd2033 | verified min |
+| ace | 1012 | [flores200-calibration-ace](https://huggingface.co/datasets/sanggusti/flores200-calibration-ace) | bd216607 | verified ace |
+| ban | 1012 | [flores200-calibration-ban](https://huggingface.co/datasets/sanggusti/flores200-calibration-ban) | 4857aa7c | verified ban |
+| bjn | 1012 | [flores200-calibration-bjn](https://huggingface.co/datasets/sanggusti/flores200-calibration-bjn) | 7edd018f | verified bjn |
+| bug | 1012 | [flores200-calibration-bug](https://huggingface.co/datasets/sanggusti/flores200-calibration-bug) | a12b39ae | verified bug |
 
 Note: the server reuses display names from a small pool, so names repeat.
 Dataset ids are the only reliable handle. Files: `data/calibration/`.
@@ -62,6 +62,14 @@ matches human references within 8 points (0.68 vs 0.76; the 0.90 bar is
 unachievable for Banjar by anyone). bug translator underperforms references
 (0.35 vs 0.84; emits pure Indonesian on hard sentences). Both ship flagged;
 contamination is measured by the leak_id covariate when the NLLB set lands.
+
+## Gate reports
+
+All 16 per-split reports plus the probe report: [gsm8k-gate-reports](https://huggingface.co/datasets/sanggusti/gsm8k-gate-reports)
+(mirror of `data/gate/`).
+
+Raw AutoScientist train pairs (8 Adaption datasets) are not pushed separately:
+they derive from each train split in one line via `training_pair()`.
 
 ## Probes
 
