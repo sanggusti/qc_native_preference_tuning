@@ -24,6 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pipeline.datagenerator.gate import (  # noqa: E402
     extract_final_number,
+    source_numbers,
     verify_structure,
 )
 
@@ -238,6 +239,203 @@ def translator_version() -> str:
     return f"adaption-datasets/{version('adaption')}"
 
 
+def run_column_pair(
+    client: Any,
+    translation: Any,
+    blueprint: str,
+    dataset_id: str,
+    upload: list[dict[str, str]],
+    run_cap: int | None,
+    key_prefix: str,
+    preflight: Any,
+) -> dict[str, dict[str, str]]:
+    """Translate prompt columns on one dataset; returns per-column id maps.
+
+    Each run translates its prompt column into enhanced_completion; completion
+    maps to the neutral filler (same column twice is rejected live, and the
+    sibling column would leak into the output).
+    """
+    translated: dict[str, dict[str, str]] = {}
+    for column in ("question", "answer"):
+        kwargs = build_run_kwargs(
+            translation, blueprint, {"prompt": column, "completion": "context"},
+            run_cap, f"{key_prefix}-{column}",
+        )
+        estimate = client.datasets.run(dataset_id, **kwargs, estimate=True)
+        preflight(column, estimate)
+        run_response = client.datasets.run(dataset_id, **kwargs)
+        check_run_succeeded(run_response)
+        check_run_succeeded(
+            client.datasets.wait_for_completion(dataset_id, timeout=7200)
+        )
+        check_run_is_latest(client, dataset_id, run_response.run_id)
+        downloaded = download_rows(client, dataset_id)
+        verify_row_survival(len(downloaded), len(upload))
+        translated[column] = index_by_id(downloaded)
+    return translated
+
+
+def missing_numerals(source: dict[str, Any], translated: dict[str, Any]) -> list[str]:
+    """Source numerals absent from the translation (regen diagnostics)."""
+    wanted = source_numbers(
+        str(source.get("answer", "")) + " " + str(source.get("question", ""))
+    )
+    have = str(translated.get("answer", "")) + " " + str(translated.get("question", ""))
+    return sorted({number for number in wanted if number not in have})
+
+
+def normalize_numeral_format(text: str) -> str:
+    """Rewrite localized numerals to English formatting, mechanically.
+
+    Indonesian-style thousands dots (12.000) become commas and decimal commas
+    (333.200,00) become dots. Correct English numerals (2,400; 2.5; 1,000.00)
+    are untouched. Live: some rows keep localizing through regen; the repair
+    is verified by re-running the structure check before anything is kept.
+    """
+    import re
+
+    repaired = text
+    for _ in range(5):
+        rewritten = re.sub(r"(\d)\.(\d{3})(?=\D|$)", r"\1,\2", repaired)
+        if rewritten == repaired:
+            break
+        repaired = rewritten
+    repaired = re.sub(r"(\d),(\d{2})(?=\D|$)", r"\1.\2", repaired)
+    return repaired
+
+
+def regen_blueprint(blueprint: str, details: list[str]) -> str:
+    """Append the failure reasons to the blueprint (methodology: regen once)."""
+    return (
+        blueprint
+        + "\n\nPrevious translation rejected ("
+        + "; ".join(details)
+        + "). Fix exactly that; keep everything else identical."
+    )
+
+
+INSTRUCTION_MARKER_NOTES = {
+    # Marker sentences for the dedicated instruction run only. They must not
+    # appear in item blueprints: verified live, mentioning ANSWER: primes the
+    # model to emit solutions into translated questions.
+    "numeric_match": (
+        "Keep the marker ANSWER: and the placeholder <number> byte-identical; "
+        "never translate or localize them."
+    ),
+    "choice": (
+        "Keep the marker ANSWER:, the placeholder $LETTER, and the template "
+        "variables {letters}, {question} and {choices} byte-identical; never "
+        "translate or localize them."
+    ),
+}
+
+
+def instruction_blueprint(blueprint: str, scorer: str) -> str:
+    """Item blueprint plus the marker note for the instruction run."""
+    if scorer not in INSTRUCTION_MARKER_NOTES:
+        raise ValueError(f"unknown scorer {scorer}")
+    return blueprint + " " + INSTRUCTION_MARKER_NOTES[scorer]
+
+
+def translate_instruction(
+    client: Any, translation: Any, blueprint: str, entry: Any,
+    bench_name: str, lang_code: str,
+) -> tuple[str, str]:
+    """Translate the benchmark instruction on a 1-row dataset.
+
+    Returns (instruction, dataset_id). Retried once with the failure reason
+    appended; raises when both attempts drop the markers.
+    """
+    name = entry["instruction_en"] if isinstance(entry, dict) else entry.instruction_en
+    scorer = entry["scorer"] if isinstance(entry, dict) else entry.scorer
+    upload = [{"id": INSTRUCTION_ROW_ID, "question": str(name),
+               "answer": str(name), "context": "No additional context."}]
+    current = instruction_blueprint(blueprint, scorer)
+    last_error = ""
+    for attempt in ("", "-retry"):
+        path = write_upload_file(upload)
+        try:
+            dataset_id = client.datasets.upload_file(
+                path, name=f"{bench_name}-{lang_code}-instruction{attempt}"
+            ).dataset_id
+            print(f"instruction dataset_id: {dataset_id}")
+            wait_until_ready(client, dataset_id)
+            maps = run_column_pair(
+                client, translation, current, dataset_id, upload, 1,
+                f"{bench_name}-{lang_code}-instruction-rows1{attempt}",
+                lambda column, estimate: None,
+            )
+        finally:
+            Path(path).unlink(missing_ok=True)
+        try:
+            return instruction_text(maps["question"], scorer), dataset_id
+        except ValueError as exc:
+            last_error = str(exc)
+            current = regen_blueprint(current, [last_error])
+    raise ValueError(f"instruction translation failed twice: {last_error}")
+
+
+def checked_item(
+    entry: Any,
+    fields: Any,
+    item: dict[str, Any],
+    translated_columns: dict[str, dict[str, str]],
+    instruction: str,
+) -> dict[str, Any]:
+    """Verify one translated item; returns derived fields plus ok/reasons."""
+    source_id = item["source_id"]
+    source_row = item["source_row"]
+    prompt = translated_columns["question"][source_id]
+    completion = translated_columns["answer"][source_id]
+    answer_value = source_row[fields["answer"]]
+    answer_list = (
+        [str(a) for a in answer_value]
+        if isinstance(answer_value, list)
+        else [str(answer_value)]
+    )
+    source_choices = (
+        [str(c) for c in source_row[fields["choices"]]]
+        if "choices" in fields
+        else []
+    )
+    translated_choices: list[str] = []
+    choices_error = ""
+    if entry["scorer"] == "choice":
+        try:
+            translated_choices = [str(c) for c in json.loads(completion)]
+        except (json.JSONDecodeError, TypeError):
+            choices_error = "choices_not_json_list"
+    target_letter = (
+        chr(ord("A") + source_choices.index(answer_list[0]))
+        if entry["scorer"] == "choice"
+        else ""
+    )
+    source = {
+        "question": str(source_row[fields["question"]]),
+        "answer": _completion_source_text(source_row, fields, entry["scorer"]),
+        "choices": source_choices,
+        "target": target_letter or "A",
+        "instruction": instruction,
+    }
+    translated = {
+        "question": prompt,
+        "answer": completion,
+        "choices": translated_choices,
+        "target": target_letter or "A",
+        "instruction": instruction,
+    }
+    ok, reasons = verify_structure(source, translated, entry["scorer"])
+    if choices_error:
+        ok, reasons = False, [*reasons, choices_error]
+    return {
+        "source_id": source_id, "ok": ok, "reasons": reasons,
+        "prompt": prompt, "completion": completion,
+        "answer_list": answer_list, "source_choices": source_choices,
+        "translated_choices": translated_choices, "target_letter": target_letter,
+        "source": source, "translated": translated,
+    }
+
+
 def canonical_row(
     source: dict[str, Any],
     prompt: str,
@@ -384,6 +582,12 @@ def main() -> None:
         translation = series["translation"]
         run_ids: dict[str, str] = {}
         pushed: dict[str, Any] = {}
+        # One instruction translation per language on its own dataset: the
+        # marker note it needs would prime solutions into item translations.
+        instruction, instruction_dataset_id = translate_instruction(
+            client, translation, blueprint, entry, bench_name, lang_code)
+        print(f"instruction: {instruction[:80]}")
+        run_ids["instruction"] = {"dataset_id": instruction_dataset_id}
         for split in splits:
             source = entry["train_source" if split == "train" else "eval_source"]
             fields = source["fields"]
@@ -410,11 +614,11 @@ def main() -> None:
             # not be visible or the model translates it into the output too
             # (verified live: solutions leaked into translated questions).
             filler = "No additional context."
-            upload = [{"id": INSTRUCTION_ROW_ID, "question": entry["instruction_en"], "answer": entry["instruction_en"], "context": filler}]
-            upload += [
-                        {"id": item["source_id"], "question": item["question"], "answer": item["answer"], "context": filler}
-                        for item in items
-                    ]
+            upload = [
+                {"id": item["source_id"], "question": item["question"],
+                 "answer": item["answer"], "context": filler}
+                for item in items
+            ]
             upload_path = write_upload_file(upload)
             try:
                 if cfg.dataset_id:
@@ -426,24 +630,14 @@ def main() -> None:
                     ).dataset_id
                     print(f"dataset_id: {dataset_id} (server may rename the display name)")
                 wait_until_ready(client, dataset_id)
-                # The upload holds the items plus the instruction row, so the
-                # run cap must cover len(upload); cfg.max_rows would drop a row.
+                # The run cap must cover len(upload); a smaller cap drops rows.
                 # The idempotency scope tracks the effective cap: same params must
                 # map to the same key, or retries silently reuse a stale run.
                 run_cap = len(upload) if cfg.max_rows is not None else None
                 scope = run_cap if run_cap is not None else "full"
-                translated_columns: dict[str, dict[str, str]] = {}
-                for column in ("question", "answer"):
-                    key = f"{bench_name}-{lang_code}-{split}-{column}-rows{scope}"
-                    # The run translates the prompt column into enhanced_completion;
-                    # completion maps to the neutral filler (same column twice is
-                    # rejected live, and the sibling column would leak into the
-                    # output).
-                    kwargs = build_run_kwargs(
-                        translation, blueprint, {"prompt": column, "completion": "context"},
-                        run_cap, key,
-                    )
-                    estimate = client.datasets.run(dataset_id, **kwargs, estimate=True)
+                key_prefix = f"{bench_name}-{lang_code}-{split}-rows{scope}"
+
+                def preflight(column: str, estimate: Any, split: str = split) -> None:
                     if column == "question":
                         print_preflight(
                             bench_name, lang_code, series_name, split,
@@ -451,87 +645,142 @@ def main() -> None:
                         )
                     else:
                         print(f"estimate [{column}]: {estimate}")
-                    run_response = client.datasets.run(dataset_id, **kwargs)
-                    check_run_succeeded(run_response)
-                    check_run_succeeded(
-                        client.datasets.wait_for_completion(dataset_id, timeout=7200)
-                    )
-                    check_run_is_latest(client, dataset_id, run_response.run_id)
-                    downloaded = download_rows(client, dataset_id)
-                    verify_row_survival(len(downloaded), len(upload))
-                    translated_columns[column] = index_by_id(downloaded)
+
+                translated_columns = run_column_pair(
+                    client, translation, blueprint, dataset_id,
+                    upload, run_cap, key_prefix, preflight,
+                )
+                # Snapshot raw translations: download is latest-run-only, so a
+                # later crash would otherwise strand the superseded column.
+                snapshot_dir = Path(cfg.output_dir) / "_snapshots"
+                snapshot_dir.mkdir(parents=True, exist_ok=True)
+                snapshot_path = snapshot_dir / f"{bench_name}-{lang_code}-{split}.json"
+                snapshot_path.write_text(
+                    json.dumps(
+                        {"dataset_id": dataset_id, "columns": translated_columns},
+                        ensure_ascii=False),
+                    encoding="utf-8")
                 require_ids(translated_columns["question"], translated_columns["answer"],
-                            expected=[item["source_id"] for item in items] + [INSTRUCTION_ROW_ID])
-                instruction = instruction_text(translated_columns["question"], entry["scorer"])
+                            expected=[item["source_id"] for item in items])
+                records = {
+                    item["source_id"]: checked_item(
+                        entry, fields, item, translated_columns, instruction)
+                    for item in items
+                }
+                failures = {
+                    source_id: record["reasons"]
+                    for source_id, record in records.items() if not record["ok"]
+                }
+                regen_dataset_id = ""
+                if failures:
+                    # Methodology regen ladder, first rung only: re-translate the
+                    # failing rows once with the failure reason appended. NLLB
+                    # fallback and exclusion need backends that do not exist yet.
+                    details: list[str] = []
+                    for source_id, reasons in failures.items():
+                        record = records[source_id]
+                        if "numeral_missing" in reasons:
+                            missing = missing_numerals(record["source"], record["translated"])
+                            details.append(f"{source_id}: numeral_missing {missing}")
+                        else:
+                            details.append(f"{source_id}: {','.join(reasons)}")
+                    regen_rows = [
+                        {"id": item["source_id"], "question": item["question"],
+                         "answer": item["answer"], "context": filler}
+                        for item in items if item["source_id"] in failures
+                    ]
+                    print(f"regen {len(regen_rows)} rows: {details}")
+                    regen_path = write_upload_file(regen_rows)
+                    try:
+                        regen_dataset_id = client.datasets.upload_file(
+                            regen_path, name=f"{bench_name}-{lang_code}-{split}-regen"
+                        ).dataset_id
+                        print(f"regen dataset_id: {regen_dataset_id}")
+                        wait_until_ready(client, regen_dataset_id)
+                        regen_maps = run_column_pair(
+                            client, translation, regen_blueprint(blueprint, details),
+                            regen_dataset_id, regen_rows, len(regen_rows),
+                            f"{key_prefix}-regen", lambda column, estimate: None,
+                        )
+                    finally:
+                        Path(regen_path).unlink(missing_ok=True)
+                    require_ids(regen_maps["question"], regen_maps["answer"],
+                                expected=[row["id"] for row in regen_rows])
+                    for column in ("question", "answer"):
+                        translated_columns[column].update(regen_maps[column])
+                    records = {
+                        item["source_id"]: checked_item(
+                            entry, fields, item, translated_columns, instruction)
+                        for item in items
+                    }
+                    still_failing = sorted(
+                        source_id for source_id, record in records.items() if not record["ok"])
+                    if still_failing:
+                        # Last mechanical rung: some rows keep localizing numerals
+                        # through regen. Repair the format deterministically and
+                        # keep the row only if the structure check then passes.
+                        repaired_ids = []
+                        for source_id in still_failing:
+                            record = records[source_id]
+                            if "numeral_missing" not in record["reasons"]:
+                                continue
+                            trial = {
+                                column: dict(translated_columns[column])
+                                for column in ("question", "answer")
+                            }
+                            for column in ("question", "answer"):
+                                trial[column][source_id] = normalize_numeral_format(
+                                    trial[column][source_id])
+                            item = next(
+                                i for i in items if i["source_id"] == source_id)
+                            fixed = checked_item(
+                                entry, fields, item, trial, instruction)
+                            if fixed["ok"]:
+                                for column in ("question", "answer"):
+                                    translated_columns[column][source_id] = trial[column][source_id]
+                                records[source_id] = fixed
+                                repaired_ids.append(source_id)
+                        if repaired_ids:
+                            print(f"numeral-format repaired: {repaired_ids}")
+                        still_failing = sorted(
+                            source_id for source_id, record in records.items()
+                            if not record["ok"])
+                    if still_failing:
+                        reasons = {source_id: records[source_id]["reasons"]
+                                   for source_id in still_failing}
+                        raise ValueError(
+                            f"rows failed after regen {reasons}; "
+                            "NLLB fallback/exclusion not implemented")
                 canonical = []
                 for item in items:
-                    source_id = item["source_id"]
-                    source_row = item["source_row"]
-                    prompt = translated_columns["question"][source_id]
-                    completion = translated_columns["answer"][source_id]
-                    answer_value = source_row[fields["answer"]]
-                    answer_list = (
-                        [str(a) for a in answer_value]
-                        if isinstance(answer_value, list)
-                        else [str(answer_value)]
-                    )
-                    source_choices = (
-                        [str(c) for c in source_row[fields["choices"]]]
-                        if "choices" in fields
-                        else []
-                    )
-                    translated_choices: list[str] = []
-                    if entry["scorer"] == "choice":
-                        try:
-                            translated_choices = [str(c) for c in json.loads(completion)]
-                        except (json.JSONDecodeError, TypeError) as exc:
-                            raise ValueError(f"choices not a JSON list for {source_id}") from exc
-                    target_letter = (
-                        chr(ord("A") + source_choices.index(answer_list[0]))
-                        if entry["scorer"] == "choice"
-                        else ""
-                    )
-                    ok, reasons = verify_structure(
-                        {
-                            "question": str(source_row[fields["question"]]),
-                            "answer": _completion_source_text(source_row, fields, entry["scorer"]),
-                            "choices": source_choices,
-                            "target": target_letter or "A",
-                            "instruction": instruction,
-                        },
-                        {
-                            "question": prompt,
-                            "answer": completion,
-                            "choices": translated_choices,
-                            "target": target_letter or "A",
-                            "instruction": instruction,
-                        },
-                        entry["scorer"],
-                    )
-                    if not ok:
-                        raise ValueError(f"structure failed for {source_id}: {reasons}")
+                    record = records[item["source_id"]]
                     canonical.append(
                         canonical_row(
-                            {"choices": source_choices, "answer": answer_list},
-                            prompt, completion, instruction, entry["instruction_en"],
-                            str(source_row[fields["question"]]), answer_list[0],
+                            {"choices": record["source_choices"], "answer": record["answer_list"]},
+                            record["prompt"], record["completion"],
+                            instruction, entry["instruction_en"],
+                            str(item["source_row"][fields["question"]]),
+                            record["answer_list"][0],
                             lang_code, language["translation_register"],
                             blueprint_hash(blueprint), translator_version(),
-                            entry["scorer"], source_id,
+                            entry["scorer"], item["source_id"],
                         )
                     )
                 pushed[split] = canonical
                 run_ids[split] = {"dataset_id": dataset_id, "columns": ["question", "answer"]}
+                if regen_dataset_id:
+                    run_ids[split]["regen_dataset_id"] = regen_dataset_id
+                # Persist each split immediately: a later split must never waste
+                # a completed one.
+                out_dir = Path(cfg.output_dir)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                split_path = out_dir / f"{bench_name}-{lang_code}-{split}.jsonl"
+                with open(split_path, "w", encoding="utf-8") as handle:
+                    for row in canonical:
+                        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+                print(f"Wrote {len(canonical)} rows to {split_path}")
             finally:
                 Path(upload_path).unlink(missing_ok=True)
-        out_dir = Path(cfg.output_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for split, rows in pushed.items():
-            split_path = out_dir / f"{bench_name}-{lang_code}-{split}.jsonl"
-            with open(split_path, "w", encoding="utf-8") as handle:
-                for row in rows:
-                    handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-            print(f"Wrote {len(rows)} rows to {split_path}")
         if cfg.push_to_hub:
             DatasetDict({split: Dataset.from_list(pushed[split]) for split in pushed}).push_to_hub(
                 cfg.push_to_hub, private=bool(cfg.private)

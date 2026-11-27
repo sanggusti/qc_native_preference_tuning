@@ -11,11 +11,16 @@ from pipeline.datagenerator.translate_benchmark import (
     build_run_kwargs,
     canonical_row,
     check_run_is_latest,
+    checked_item,
     dataset_card,
     dataset_latest_run_id,
     expansion_probe_kwargs,
     index_by_id,
+    instruction_blueprint,
+    missing_numerals,
+    normalize_numeral_format,
     probe_language_expansion,
+    regen_blueprint,
     require_ids,
     select_train_indices,
     source_id_for,
@@ -227,6 +232,49 @@ def test_training_pair_and_card_and_version():
     card = dataset_card("gsm8k", "jv", {"train": 1000}, "ngoko", "bp", {"train": "d1"}, "MIT")
     assert "gsm8k-jv" in card and "pending" in card
     assert translator_version().startswith("adaption-datasets/")
+
+
+def test_normalize_numeral_format():
+    assert normalize_numeral_format("12.000 + 24.000 = 36.000") == "12,000 + 24,000 = 36,000"
+    assert normalize_numeral_format("$333.200,00") == "$333,200.00"
+    assert normalize_numeral_format("1.234.567") == "1,234,567"
+    assert normalize_numeral_format("2,400 and 2.5 and 1,000.00") == "2,400 and 2.5 and 1,000.00"
+    assert normalize_numeral_format("no numbers here") == "no numbers here"
+
+
+def test_missing_numerals_and_regen_blueprint():
+    source = {"question": "It costs 1500.", "answer": "#### 1500"}
+    translated = {"question": "Regane 1.500.", "answer": "#### 1.500"}
+    assert missing_numerals(source, translated) == ["1500"]
+    assert missing_numerals(source, source) == []
+    text = regen_blueprint("Base.", ["s-1: numeral_missing ['1500']"])
+    assert text.startswith("Base.") and "numeral_missing" in text
+
+
+def test_checked_item_pass_and_collects_reasons():
+    entry = {"scorer": "numeric_match"}
+    fields = {"question": "question", "answer": "answer"}
+    item = {
+        "source_id": "s-1",
+        "source_row": {"question": "Budi has 3 apples.", "answer": "3 apples. #### 3"},
+    }
+    good = {"question": {"s-1": "Budi duwe 3 apel."},
+            "answer": {"s-1": "3 apel. #### 3"}}
+    record = checked_item(entry, fields, item, good, "Do it. ANSWER: <number>")
+    assert record["ok"] and record["prompt"].startswith("Budi")
+    bad = {"question": {"s-1": "Budi duwe apel."},
+           "answer": {"s-1": "Apel kabeh. #### akeh"}}
+    record = checked_item(entry, fields, item, bad, "Do it. ANSWER: <number>")
+    assert not record["ok"] and "numeral_missing" in record["reasons"]
+
+
+def test_instruction_blueprint_pins_markers():
+    text = instruction_blueprint("Base.", "numeric_match")
+    assert text.startswith("Base.") and "ANSWER:" in text and "<number>" in text
+    text = instruction_blueprint("Base.", "choice")
+    assert "$LETTER" in text and "{question}" in text and "{choices}" in text
+    with pytest.raises(ValueError, match="unknown scorer"):
+        instruction_blueprint("Base.", "essay")
 
 
 def test_latest_run_guard():

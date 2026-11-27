@@ -97,6 +97,13 @@ def test_verify_structure_numeric_pass_and_failures():
     assert "answer_marker_missing" in verify_structure(source, bad, "numeric_match")[1]
 
 
+def test_source_numbers_ignores_letter_glued_ghosts():
+    from pipeline.datagenerator.gate import source_numbers
+
+    assert "9" not in source_numbers("10 (for Mico) + 10 9for Marco) = 20")
+    assert source_numbers("$80,000 and 2.5% plus 1500") == ["80,000", "2.5", "1500"]
+
+
 def test_numeral_format_check_rejects_localized_numbers():
     source = {"question": "It costs 1500 rupiah.", "answer": "#### 1500"}
     translated = {

@@ -24,7 +24,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pipeline.covariates.similarity import chrf_plusplus  # noqa: E402
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# Right letter boundary: source typos like "9for Marco" (gsm8k test-00278) must not
+# yield ghost numerals a correct translation can never reproduce.
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*(?![A-Za-z])")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?\u2026\n])\s+")
 
 

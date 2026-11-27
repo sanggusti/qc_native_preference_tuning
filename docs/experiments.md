@@ -43,8 +43,8 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 2 | 250-item base evals per candidate base and language; Belebele id, jv, su probes | | | | |
 | 2 | floor rule on id and min, ceiling on en; pinned primary and contrast base with size and cost (issue #63) | | | | |
 | 2 | English-only finetuning probe per second-benchmark candidate; decision recorded as an amendment (issue #62) | | | | |
-| 3 | gsm8k test split translation and gate per tier 0 language | 1,319 rows x 4 | | | |
-| 3 | gsm8k train split translation and gate per tier 0 language | 1,000 rows x 4 | | | |
+| 3 | gsm8k test split translation and gate per tier 0 language | 1,319 rows x 4 | 1,319 x 8 incl. tier 2 (6 admitted, bjn/bug provisional) | sanggusti/math-qa-{lang}, docs/datasets.md | 2026-11-27 |
+| 3 | gsm8k train split translation and gate per tier 0 language | 1,000 rows x 4 | 1,000 x 8 incl. tier 2 (6 admitted, bjn/bug provisional) | sanggusti/math-qa-{lang}, docs/datasets.md | 2026-11-27 |
 | 3 | derived splits `-rt` (NLLB-200 back-translation), `-pro1`; human-verified subsets | | | | |
 | 3 | full-split base evals on the original and `-pro1` splits (the base and base_pro1 cells) | | | | |
 | 4 | tier 0 gsm8k finetunes (primary base) | 5 languages x 3 replicates = 15 | | | |
@@ -64,6 +64,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 2026-11-22 | s01_language_medium | Pin sampling_seed 47 for the fixed train subset (was unspecified) | methodology 5.1 requires a fixed seeded subset; first pin, not a change | |
 | 2026-11-23 | s01_language_medium | Pin gate judge to google/gemma-4-12B-it on Modal L40S (was unspecified) | current multilingual coverage at a servable size; endpoint URL recorded per run | |
 | 2026-11-23 | s01_language_medium | Translate one column per Adaption run, join by id, clear expansion explicitly | live smoke showed prompt-column-only output, unstable download order, and probe config inheritance | |
+| 2026-11-26 | s01_language_medium | LID verdict whole-item (was per-sentence); bjn/bug admitted provisionally (lid 0.67/0.43; refs 0.76/0.84, bug translator emits Indonesian) | sentence GlotLID cannot separate jv/ind; tier-2 provisional path invoked | |
 | | | | | |
 
 ## 5. Artifacts
