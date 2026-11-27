@@ -36,8 +36,8 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 0 | NusaX identical-content-token share and chrF++ of each regional language against Indonesian (leakage threshold, D2 covariate) | | | | |
 | 0 | register and orthography audit of the FLORES-200 references (jv, min, ace, ban, bjn, bug) | | | | |
 | 1 | `language_expansion` probe with `estimate=True` per code | | | | |
-| 1 | FLORES-200 devtest calibration per language (Adaption and NLLB-200 chrF++, QE diagnostics) | about 5,000 rows | | | |
-| 1 | 50-row gsm8k probe per language with the full quality columns | 250 rows | | | |
+| 1 | FLORES-200 devtest calibration per language (Adaption and NLLB-200 chrF++, QE diagnostics) | about 5,000 rows | 8,096 rows Adaption (8/8 verified; NLLB pending) | data/calibration, docs/datasets.md | 2026-11-27 |
+| 1 | 50-row gsm8k probe per language with the full quality columns | 250 rows | 50 rows jv, gate green lid 0.92 (amended item rule) | data/translated, data/gate | 2026-11-27 |
 | 1 | admitted languages and deferred languages with scores | | | | |
 | 2 | 250-item gsm8k test subset translation per admitted language | about 1,250 rows | | | |
 | 2 | 250-item base evals per candidate base and language; Belebele id, jv, su probes | | | | |
