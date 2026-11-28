@@ -18,6 +18,7 @@ from pipeline.datagenerator.translate_benchmark import (
     index_by_id,
     instruction_blueprint,
     missing_numerals,
+    missing_upload_rows,
     normalize_numeral_format,
     probe_language_expansion,
     regen_blueprint,
@@ -240,6 +241,12 @@ def test_normalize_numeral_format():
     assert normalize_numeral_format("1.234.567") == "1,234,567"
     assert normalize_numeral_format("2,400 and 2.5 and 1,000.00") == "2,400 and 2.5 and 1,000.00"
     assert normalize_numeral_format("no numbers here") == "no numbers here"
+
+
+def test_missing_upload_rows_diffs_by_id():
+    upload = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    assert missing_upload_rows(upload, [{"id": "a"}, {"id": "b"}, {"id": "c"}]) == []
+    assert missing_upload_rows(upload, [{"id": "a"}, {"id": "c"}]) == [{"id": "b"}]
 
 
 def test_missing_numerals_and_regen_blueprint():

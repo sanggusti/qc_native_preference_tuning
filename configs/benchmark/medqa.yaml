@@ -40,7 +40,8 @@ translate:
     - the translated correct option must be byte-identical to one translated choice
   blueprint: >-
     Translate ONLY the text below into {language}. Output nothing but the translation. Keep
-    the options in the same order and do not merge or drop any option. Keep drug names, units,
+    the options in the same order and do not merge or drop any option. If the text is a
+    JSON array, output a JSON array with the same number of elements and nothing else. Keep drug names, units,
     laboratory values and standard abbreviations unchanged. Be formal and terminologically
     precise in the register given next; where the language has no established medical term,
     keep the Indonesian or Latin term and mark nothing else. {register_instruction}

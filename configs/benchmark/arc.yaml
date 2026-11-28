@@ -41,7 +41,8 @@ translate:
   blueprint: >-
     Translate ONLY the text below into {language}. Output nothing but the translation.
     {register_instruction} Keep the options in the same order and do not merge
-    or drop any option. Preserve scientific terms, formulas, and units exactly.
+    or drop any option. If the text is a JSON array, output a JSON array with the
+    same number of elements and nothing else. Preserve scientific terms, formulas, and units exactly.
   prompt_template_key: multiple_choice_instruction
   variants:
     rt: back-translation of the {language} test split into English

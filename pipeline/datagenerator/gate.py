@@ -609,6 +609,9 @@ def _load_gate_rows(cfg: Any) -> list[dict[str, Any]]:
             # answer-side structure was enforced fatally at translate time.
             "answer": "",
             "instruction": str(row.get("instruction", "")),
+            # Choice benchmarks persist translated choices + target letter.
+            "choices": list(row.get("choices", [])),
+            "target": str(row.get("target", "")),
         })
     print(f"loaded {len(rows)} translated rows")
     return rows
