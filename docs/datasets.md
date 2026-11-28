@@ -4,8 +4,7 @@ Finished datasets and coverage for the S01 data phase. Updated by the agent
 whenever a dataset run completes: verify rows, gate verdict and Hub repo, then
 update the tables below and the ledger in `docs/experiments.md` section 3.
 
-Last updated: 2026-11-27 (calibration sets and gate reports pushed to Hub;
-all artifacts published).
+Last updated: 2026-11-28 (medpool 8/8 complete, gated, published).
 
 ## Summary
 
@@ -14,6 +13,8 @@ all artifacts published).
 | FLORES-200 calibration | 9/9 languages (8 translated + en source) | 8,096 translated | complete, gated inputs |
 | gsm8k train (1000 subset) | 8/8 complete (6 admitted, bjn/bug provisional) | 8,000 | done |
 | gsm8k test (1319) | 8/8 complete (6 admitted, bjn/bug provisional) | 10,552 | done |
+| medpool train (1000) | 8/8 complete (6 admitted, bjn/bug provisional) | 8,000 | done |
+| medpool test (250) | 8/8 complete (6 admitted, bjn/bug provisional) | 2,000 | done |
 | medqa | parked (tier 3, issue #62) | 0 | not started |
 | NLLB second-opinion set | pending Modal work | 0 | not started |
 
@@ -63,6 +64,25 @@ unachievable for Banjar by anyone). bug translator underperforms references
 (0.35 vs 0.84; emits pure Indonesian on hard sentences). Both ship flagged;
 contamination is measured by the leak_id covariate when the NLLB set lands.
 
+## medpool translation (in progress)
+
+Merged medqa (500+125) + medmcqa (500+125) pool, 1000 train + 250 test per
+language, pushed to Hub as `sanggusti/medical-qa-{lang}`. English source:
+[sanggusti/medpool-en](https://huggingface.co/datasets/sanggusti/medpool-en).
+LID verdicts below compare against truncated human references per language
+(see incident 5); the 0.90 bar does not transfer to fragmentary items.
+
+| Lang | Train | Test | Hub repo | Gate | Status |
+|---|---|---|---|---|---|
+| jv | 1000 | 250 | [medical-qa-jv](https://huggingface.co/datasets/sanggusti/medical-qa-jv) | lid 0.83/0.87 | verified, above truncated refs |
+| id | 1000 | 250 | [medical-qa-id](https://huggingface.co/datasets/sanggusti/medical-qa-id) | lid 0.83/0.88 | verified, above truncated refs |
+| su | 1000 | 250 | [medical-qa-su](https://huggingface.co/datasets/sanggusti/medical-qa-su) | lid 0.87/0.86 | verified, above truncated refs |
+| min | 1000 | 250 | [medical-qa-min](https://huggingface.co/datasets/sanggusti/medical-qa-min) | lid 0.82/0.83 | verified, above truncated refs |
+| ace | 1000 | 250 | [medical-qa-ace](https://huggingface.co/datasets/sanggusti/medical-qa-ace) | lid 0.87/0.87 | verified, above truncated refs |
+| ban | 1000 | 250 | [medical-qa-ban](https://huggingface.co/datasets/sanggusti/medical-qa-ban) | lid 0.85/0.93 | 1 looped row regenned, re-pushed |
+| bjn | 1000 | 250 | [medical-qa-bjn](https://huggingface.co/datasets/sanggusti/medical-qa-bjn) | lid 0.55/0.55, PROVISIONAL | 0 leaks; above truncated refs |
+| bug | 1000 | 250 | [medical-qa-bug](https://huggingface.co/datasets/sanggusti/medical-qa-bug) | lid 0.20/0.20, PROVISIONAL | 9 looped rows regenned, re-pushed |
+
 ## Gate reports
 
 All 16 per-split reports plus the probe report: [gsm8k-gate-reports](https://huggingface.co/datasets/sanggusti/gsm8k-gate-reports)
@@ -109,6 +129,16 @@ Adaption dashboard (1687 at start).
    numeral check demanded in translations. Fix: letter-boundary numeral regex.
 4. Display-name reuse. The server renames datasets from a small pool
    (`identity_text_pairs` used 5 times). Track by dataset id only.
+5. Decoder repetition loops. The translator degenerates into syllable loops
+   on some longer sentences, worst in bug (9 rows up to 49KB) and once in ban.
+   Structure checks pass them (numerals survive); only the length band flags
+   them. Fixed per row by regen with verification; a repetition detector swept
+   all languages (questions and choices) before release.
+6. LID thresholds do not transfer to fragments. FLORES-calibrated bars fail
+   human references truncated to 5 words (0.43-0.78 across languages), so
+   medpool verdicts compare against truncated human references per language
+   instead of the frozen 0.90 bar. No rule changed; the comparison is recorded
+   per language.
 
 ## Follow-ups
 

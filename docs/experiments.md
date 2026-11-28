@@ -21,7 +21,7 @@ Every series, every paid run and every artifact is recorded here. The planner ou
 
 Per tier (finetunes / evaluations): tier 0, gsm8k on en, id, jv, su, min with the native, English-anchor and Indonesian-pivot arms, 15 / 85; tier 1, the transparent-backend check on en and id (6 runs on Modal) and the contrast base on gsm8k (15), 21 / 33; tier 2, Acehnese, Balinese, Banjarese and Buginese in every lower-tier condition and the pooled model, 27 / 131; tier 3, the second benchmark (medqa as placeholder), 30 / 156.
 
-Base models (provisional until the Phase 2 floor rule, issue #63): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min (tier 0), ace, ban, bjn, bug (tier 2). Benchmarks: gsm8k (tier 0); medqa parked at tier 3 pending issue #62. Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
+Base models (provisional until the Phase 2 floor rule, issue #63): primary `google/gemma-3-4b-it`, contrast `meta-llama/Llama-3.2-3B-Instruct`. Languages: en, id, jv, su, min (tier 0), ace, ban, bjn, bug (tier 2). Benchmarks: gsm8k (tier 0); medpool (tier 3, decided 2026-11-27). Replicates: 3 (to be confirmed or revised by the Phase 4 rule).
 
 s01_extended (S01 constants plus arc, mmlu, humaneval at tier 3; issue #57): 99 datasets, 183 finetunes, 873 evals; tiers 0-2 unchanged (15/85, 21/33, 27/131).
 
@@ -54,7 +54,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 5 | tier 1 contrast-base finetunes and evals | 5 x 3 | | | |
 | 6 | Acehnese translation, gate, finetunes and evals if admitted and above floor | test 1,319, train 1,000; 3 + 3 finetunes | | | |
 | 6 | pooled finetunes and evals on gsm8k | 1 x 3 | | | |
-| 7 | second benchmark: translation, finetunes, evals | | | | |
+| 7 | second benchmark: translation, finetunes, evals | | medpool 1000+250 x 8 translated, gated (finetunes/evals pending) | sanggusti/medical-qa-{lang}, docs/datasets.md | 2026-11-28 |
 
 ## 4. Amendments
 
@@ -65,6 +65,7 @@ One row per phase and per paid unit. Planned numbers come from the planner and t
 | 2026-11-23 | s01_language_medium | Pin gate judge to google/gemma-4-12B-it on Modal L40S (was unspecified) | current multilingual coverage at a servable size; endpoint URL recorded per run | |
 | 2026-11-23 | s01_language_medium | Translate one column per Adaption run, join by id, clear expansion explicitly | live smoke showed prompt-column-only output, unstable download order, and probe config inheritance | |
 | 2026-11-26 | s01_language_medium | LID verdict whole-item (was per-sentence); bjn/bug admitted provisionally (lid 0.67/0.43; refs 0.76/0.84, bug translator emits Indonesian) | sentence GlotLID cannot separate jv/ind; tier-2 provisional path invoked | |
+| 2026-11-27 | s01_language_medium | Second benchmark is medpool (500+500 train, 125+125 test medqa+medmcqa pool); candidate evaluation skipped | maintainer decision on #62: pooled coverage within ~250cr budget; letter-answer and near-chance risks noted, not probed | |
 | | | | | |
 
 ## 5. Artifacts

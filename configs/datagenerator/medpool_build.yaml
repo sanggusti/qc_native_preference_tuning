@@ -1,0 +1,14 @@
+# Merged English medical pool (medqa + medmcqa), source for medpool.
+#   uv run python -m pipeline.datagenerator.build_medpool
+# Free (Hub reads + push); the translation that follows is the paid step.
+
+seed: 47
+train: {medqa_rows: 500, medmcqa_rows: 500}
+test: {medqa_rows: 125, medmcqa_rows: 125}
+push_to_hub: sanggusti/medpool-en
+private: false
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null

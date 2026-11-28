@@ -270,9 +270,41 @@ def run_column_pair(
         )
         check_run_is_latest(client, dataset_id, run_response.run_id)
         downloaded = download_rows(client, dataset_id)
+        missing = missing_upload_rows(upload, downloaded)
+        if missing:
+            # Random server-side row drops (verified live: 1/1000, different
+            # rows per language). Re-translate just the missing ids once.
+            print(f"survival retry for {len(missing)} rows: "
+                  f"{[row['id'] for row in missing][:5]}")
+            retry_path = write_upload_file(missing)
+            try:
+                retry_id = client.datasets.upload_file(
+                    retry_path, name=f"{key_prefix}-{column}-retry").dataset_id
+                wait_until_ready(client, retry_id)
+                retry_kwargs = build_run_kwargs(
+                    translation, blueprint, {"prompt": column, "completion": "context"},
+                    len(missing), f"{key_prefix}-{column}-retry")
+                retry_response = client.datasets.run(retry_id, **retry_kwargs)
+                check_run_succeeded(retry_response)
+                check_run_succeeded(
+                    client.datasets.wait_for_completion(retry_id, timeout=7200))
+                check_run_is_latest(client, retry_id, retry_response.run_id)
+                refetched = download_rows(client, retry_id)
+            finally:
+                Path(retry_path).unlink(missing_ok=True)
+            verify_row_survival(len(refetched), len(missing))
+            downloaded = downloaded + refetched
         verify_row_survival(len(downloaded), len(upload))
         translated[column] = index_by_id(downloaded)
     return translated
+
+
+def missing_upload_rows(
+    upload: list[dict[str, str]], downloaded: list[dict[str, Any]]
+) -> list[dict[str, str]]:
+    """Upload rows absent from a download (server-side row drops)."""
+    have = {str(row["id"]) for row in downloaded}
+    return [row for row in upload if row["id"] not in have]
 
 
 def missing_numerals(source: dict[str, Any], translated: dict[str, Any]) -> list[str]:

@@ -25,7 +25,7 @@ base_models:
   contrast: meta-llama/Llama-3.2-3B-Instruct
 
 languages: [en, id, jv, su, min, ace, ban, bjn, bug]   # each must exist as configs/language/{code}.yaml
-benchmarks: [gsm8k, medqa]              # each must exist as configs/benchmark/{name}.yaml
+benchmarks: [gsm8k, medpool]            # medpool replaces medqa as the second benchmark (issue #62, 2026-11-27)
 
 # A cell's tier is the maximum of its condition tier, its benchmark tier and the tiers of its
 # evaluation and training languages. Tier 0 is the minimum publishable unit: gsm8k on the five
@@ -33,7 +33,7 @@ benchmarks: [gsm8k, medqa]              # each must exist as configs/benchmark/{
 # Indonesian-pivot arms. Higher tiers are bought only after the go/no-go rules of
 # docs/methodology.md section 11 pass.
 tiers:
-  benchmarks: {medqa: 3}   # parked until the second-benchmark decision (issue #62)
+  benchmarks: {medpool: 3}   # second benchmark by maintainer decision (issue #62); medqa.yaml stays in registry unused
   languages: {ace: 2, ban: 2, bjn: 2, bug: 2}   # enter after the Phase 1 gate and the Phase 2 floor rule (issues #59, #63)
 
 # Conditions (train_language -> eval_language). Optional keys: eval_languages (restrict),
